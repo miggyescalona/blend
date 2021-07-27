@@ -107,7 +107,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
 
             var invId;
             var isProcessed = '1';
-            var stErrorMessage;
+            var stErrorMessage = '';
             //var intTFC;
             var arrLineUniqueKey = [];
             try{
@@ -157,6 +157,11 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                                     sublistId: 'item',
                                     fieldId: 'rate'
                                 });
+                          
+                          		var stBillingTerm = objSO.getCurrentSublistValue({
+                                    sublistId: 'item',
+                                    fieldId: 'custcol3'
+                                });
 
                                 var objInsertItems = {
                                     'intItem': intItem,
@@ -164,6 +169,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                                     'intUsageCount' :intUsageCount,
                                     'dateFrom': arrValues[x].dateFrom,
                                     'dateTo': arrValues[x].dateTo,
+                                    'stBillingTerm': stBillingTerm
                                 }
                                 arrInsertItems.push(objInsertItems);
                                 break;
@@ -237,7 +243,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                     objSO.setCurrentSublistValue({
                         sublistId: 'item',
                         fieldId: 'custcol3',
-                        value: '7'
+                        value: arrInsertItems[x].stBillingTerm
                     });
                     
 
@@ -271,7 +277,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                     } 
                 }
 
-                ///Transfor SO to Invoice
+                ///Transfer SO to Invoice
                 var objInv = record.transform({
                    fromType: record.Type.SALES_ORDER,
                    fromId: context.key,
@@ -317,6 +323,11 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         sublistId: 'item',
                         fieldId: 'custcol_bl_rev_rec_end'
                     });
+                  
+                    var stBillingTerm = objInv.getCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol3'
+                    });
 
                             
                     stDateFrom = new Date(stDateFrom);
@@ -346,7 +357,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         objInv.setCurrentSublistValue({
                             sublistId: 'item',
                             fieldId: 'custcol3',
-                            value: '7'
+                            value: stBillingTerm
                         });
 
                         var stDateFrom = objInv.getCurrentSublistValue({
