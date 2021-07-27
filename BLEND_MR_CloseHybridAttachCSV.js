@@ -10,7 +10,8 @@
  * Author : Paolo Escalona
  * 
  *  Date Modified       Modified By         Notes
- *  16 June 2021          Paolo Escalona      Initial Version
+ *  16 June 2021        Miggy Escalona      Initial Version
+ *  27 June 2021	    Miggy Escalona	    update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant
  */
 
 
@@ -56,7 +57,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
             var csvContents = "";
             csvContents += 'First Sent At' + ',' + 'Close Type' + ',' + 'Loan Reference ID' + ',' + 'Tenant' +','+ 'Parent Name' + '\n';
             objSearch.run().each(function(result){
-                csvContents+=removeSymbol(",",result.getValue({name:"custrecord_cwgp_firstsentat"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_closingtype"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_loanreferenceid"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_tenant"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_parenttenanttext"})) +'\n';
+                csvContents+=removeSymbol(",",result.getValue({name:"custrecord_cwgp_firstsentat"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_closingtype"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_loanreferenceid"}))+','+removeSymbol(",",result.getValue({name:"custrecord_cwgp_tenant"}))+','+removeSymbol(",",result.getText({name:"custrecord_cwgp_parenttenant"})) +'\n';
                 return true;    
             });
             if(arrValues.hasOwnProperty('intInvId')){ 
