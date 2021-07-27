@@ -10,8 +10,9 @@
  * Author : Paolo Escalona
  * 
  *  Date Modified       Modified By         Notes
- *  17 May 2021         Paolo Escalona      Initial Version
- *  08 June 202         Paolo Escalona      Pass input (SO number, error message) to summary stage
+ *  17 May 2021         Miggy Escalona      Initial Version
+ *  08 June 2021        Miggy Escalona      Pass input (SO number, error message) to summary stage
+ *  27 July 2021        Miggy Escalona	    Update customerparent to customerparentid, update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant.value
  */
 
 
@@ -58,17 +59,18 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
         LOG_NAME = 'map';
         try{
             var searchValue = JSON.parse(context.value);
-            //log.debug('searchValue',searchValue);
+            log.debug('searchValue',JSON.stringify(searchValue));
 
             var paramArray = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.PARAMARRAY);
             var paramArrayParsed = JSON.parse(paramArray);
+            log.debug('paramArrayParsed',JSON.stringify(paramArrayParsed));
 
-            var byParent = filterByProperty(paramArrayParsed, "customerparent", searchValue.values.custrecord_cwgp_parenttenanttext);
+            var byParent = filterByProperty(paramArrayParsed, "customerparentid", searchValue.values.custrecord_cwgp_parenttenant.value);
 
-            //log.debug('byParent',byParent);
+            log.debug('byParent',byParent);
             var param;
             if(!isEmpty(byParent)){
-                param = byParent.filter(function(param) {
+                  param = byParent.filter(function(param) {
                     return param.closetype == searchValue.values.custrecord_cwgp_closingtype;
                 });
             }
@@ -76,6 +78,8 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
             log.debug('param',param);
 
             if(!isEmpty(param)){
+            log.debug(param[0].salesorderid + '|' + param[0].paramProcessed + '|' + param[0].paramErrorMessage + '|' + param[0].paramInvId)
+                log.debug(searchValue.id);
                 var id = record.submitFields({
                     type: 'customrecord_cwgp_closehybridinvoicing',
                     id: searchValue.id,
@@ -86,11 +90,12 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
                         custrecord_cwgp_invoicenumber: param[0].paramInvId
                     },
                     options: {
-                        enableSourcing: false,
+                        enableSourcing: true,
                         ignoreMandatoryFields : true
                     }
                 });
                 
+              	log.debug('id',id);
                 var arrKey =[];
                 arrKey.push(param[0].salesorderid);
 
@@ -102,11 +107,15 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
                     arrKey.push(result.getText({name:"entity", summary: "GROUP"}))
                     return true;    
                 });
+              
+               	log.debug('arrKey1',arrKey);
 
                 ///Push invoice id to array
                 if(param[0].hasOwnProperty("paramInvId")){
                     arrKey.push(param[0].paramInvId);
                 }
+              
+                log.debug('arrKey2',arrKey);
 
 
                 var objValue = {
