@@ -13,6 +13,7 @@
  *  17 May 2021         Miggy Escalona      Initial Version
  *  08 June 2021        Miggy Escalona      Pass input (SO number, error message) to summary stage
  *  27 July 2021        Miggy Escalona	    Update customerparent to customerparentid, update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant.value
+ *  27 July 2021		Miggy Escalona      Changed author from -5 to 41225
  */
 
 
@@ -225,7 +226,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
             body = body.replace('undefined','');
 
             email.send({
-                author: -5,
+                author: 41225,
                 recipients: currentUser,
                 subject: 'Hi, the close hybrid records you have submitted has been completed.',
                 body: body
