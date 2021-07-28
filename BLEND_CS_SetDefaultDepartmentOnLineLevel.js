@@ -97,7 +97,7 @@
                      if(!isEmpty(intAcctNumber)){
                              currentRecord.setCurrentSublistValue({
                                  sublistId: sublistName,
-                                 fieldId: 'custcolcustcol_cwgp_expense_accountid',
+                                 fieldId: 'custcol_cwgp_expenseaccountid',
                                  value: intAcctNumber
                              });
                      }
