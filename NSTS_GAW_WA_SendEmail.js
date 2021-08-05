@@ -18,6 +18,7 @@
 * 2.00    Edit    16 Mar 2015     Rachelle Ann Barcelona                Added TDD Enhancements
 * 2.00    Edit    16 Mar 2015     Rose Ann Ilagan                       Optimize code and added email approval authentication
 *                 22 June 2021    Paolo Escalona                        Added stEntity to include vendor name on subject
+*                 29 July 2021    Paolo Escalona                        Rejected VBs exclude notif to creator 'ap clerk' if rejected by 'ap manager'
 */
 
 //**********************************************************************GLOBAL VARIABLE DECLARATION - STARTS HERE**********************************************//
@@ -201,8 +202,9 @@ function sendWithEmailCapture(stRuleResult,stECPAddress,objLoadRecord){
 				
                 //Get Email Template
                 var stEmailTemplateId;
-                var stEntity;
+                var stEntity = nlapiGetFieldText('entity');;
                 var stBillNo;
+				var stTotal;
 				if(stBaseRecordType == 'PURCHASEORDER'){
                     var blReapprovalNotif = nlapiGetFieldValue('custbody_cwgp_reapprovalnotification');
                     nlapiLogExecution('DEBUG', 'blReapprovalNotif', blReapprovalNotif);
@@ -213,13 +215,26 @@ function sendWithEmailCapture(stRuleResult,stECPAddress,objLoadRecord){
                         stEmailTemplateId = nlapiGetContext().getSetting("SCRIPT", 'custscript_cwgp_po_pendingapproval');
                     }
                     nlapiLogExecution('DEBUG','setTemplate','CWGP Pending Approval Template: ' + stEmailTemplateId);
+					stTotal = numberWithCommas(nlapiGetFieldValue('total'));
+					var intCurrency = nlapiGetFieldValue('currency');
+					if(intCurrency == '1' || intCurrency == '3'){
+						stTotal = '$'+stTotal;
+					}
+					else if(intCurrency == '2'){
+						stTotal = '£'+stTotal;
+					}
+					else if(intCurrency == '4'){
+						stTotal = '€'+stTotal;
+					}
+					else if(intCurrency == '5'){
+						stTotal == 'Fr.'+stTotal
+					}
                 }
                 else{
                     stEmailTemplateId = nlapiGetContext().getSetting("SCRIPT", 'custscript_nsts_gaw_email_temp_penapprvl');
                     nlapiLogExecution('DEBUG','setTemplate','AA - Pending Approval Template: ' + stEmailTemplateId);
 
                     ///Get Vendor Name on Vendor Bill
-                    stEntity = nlapiGetFieldText('entity');
                     stBillNo = nlapiGetFieldValue('tranid');
                 }
 				var objLoadEmailTemplate = null;
@@ -278,7 +293,8 @@ function sendWithEmailCapture(stRuleResult,stECPAddress,objLoadRecord){
 									stEmailSender           : isEmptyReplaceWith(stEmailSender,''),
 									stCreator               : isEmptyReplaceWith(stCreator,''),
                                     stEntity                : isEmptyReplaceWith(stEntity,''),
-                                    stBillNo                : isEmptyReplaceWith(stBillNo,'')
+                                    stBillNo                : isEmptyReplaceWith(stBillNo,''),
+									stTotal 				: isEmptyReplaceWith(stTotal,'')
 							}
 							
 							GetEmailTemplate(true, stBaseRecordType, objTranInfoPlaceHolder,objLoadRecord,objLoadEmailTemplate);
@@ -344,7 +360,8 @@ function sendWithEmailCapture(stRuleResult,stECPAddress,objLoadRecord){
 									stEmailSender           : isEmptyReplaceWith(stEmailSender,''),
 									stCreator               : isEmptyReplaceWith(stCreator,''),
                                     stEntity                : isEmptyReplaceWith(stEntity,''),
-                                    stBillNo                : isEmptyReplaceWith(stBillNo,'')
+                                    stBillNo                : isEmptyReplaceWith(stBillNo,''),
+									stTotal 				: isEmptyReplaceWith(stTotal,'')
 							}
 							 
 							GetEmailTemplate(true, stBaseRecordType, objTranInfoPlaceHolder,objLoadRecord,objLoadEmailTemplate);
@@ -609,15 +626,19 @@ function getRoleApprovers(stResult,record,stRoleResult){
 		if(stRoleResult){               
 			var arrRes = null;
 
+            nlapiLogExecution('DEBUG','getRoleApproversFunc', stRoleResult + '|' + record['subsidiary']);
 			var arrCol = [new nlobjSearchColumn('email')];
 			var arrFil = [  new nlobjSearchFilter('role', null, 'anyof', stRoleResult),
 							new nlobjSearchFilter('isinactive',null,'is','F')
 						];
-			if(bOneWorld == 'T')
-				arrFil.push(new nlobjSearchFilter('subsidiary',null, 'anyof',record['subsidiary']));
+			/*if(bOneWorld == 'T')
+				arrFil.push(new nlobjSearchFilter('subsidiary',null, 'anyof',record['subsidiary']));*/
 				
 			arrRes = nlapiSearchRecord('employee', null, arrFil, arrCol);
 			var arrApprover =[];
+            if(!isEmpty(arrApprover)){
+          		nlapiLogExecution('DEBUG','arrRes', JSON.stringify(arrRes));
+            }
 			if(arrRes){
 				for(var i=0;i<arrRes.length;i++){
 					arrApprover[i] = arrRes[i].getValue('email');
@@ -766,19 +787,21 @@ function sendEmailForApproveReject(stRuleResult){
       	
       	nlapiLogExecution('DEBUG', stLogTitle, 'stRoleId: ' + stRoleId +'|' + 'stSubjectChecker: ' + stSubjectChecker);
       
-		if(!isEmptyVariantVar(stRequestorText) && (stRoleId != '1066' &&  stRoleId != '1021' && stRoleId != 'undefined' && stRoleId != undefined && stSubjectChecker != -1)){
+		if(!isEmptyVariantVar(stRequestorText) && (stRoleId != '1064' &&  stRoleId != '1021' && stRoleId != 'undefined' && stRoleId != undefined && stSubjectChecker != -1)){
 
-			nlapiLogExecution('DEBUG', stLogTitle, 'First Send Email | stRequestorText: ' + stRequestorText + '|' + 'stCreatorText: ' + stCreatorText + '|' + 'stSubject: ' + stSubject);
+
 			//// if approved PO and not VB, attached pdf otherwise set attachments to null
 			if(stSendingEmailFor == 'approve' && stBaseRecordType == 'PURCHASEORDER'){
+                nlapiLogExecution('DEBUG', stLogTitle, 'First Send Email 1.0 | stRequestorText: ' + stRequestorText + '|' + 'stCreatorText: ' + stCreatorText + '|' + 'stSubject: ' + stSubject);
 				fileToSend = nlapiPrintRecord('TRANSACTION', stInternalId, 'DEFAULT', null);
                 stBody = replaceAll('{user}',stCWGPRequestor,stBody);
 				nlapiSendEmail(stEmailSender, stRequestor, stSubject, stBody, null, null, tranrecord, fileToSend);
 
 			}
 			else{
+                nlapiLogExecution('DEBUG', stLogTitle, 'First Send Email 2.0 | stRequestorText: ' + stRequestorText + '|' + 'stCreatorText: ' + stCreatorText + '|' + 'stSubject: ' + stSubject);
 				fileToSend = null;
-               stBody = replaceAll('{user}',stCWGPRequestor,stBody);
+                stBody = replaceAll('{user}',stCWGPRequestor,stBody);
 				nlapiSendEmail(stEmailSender, stRequestor, stSubject, stBody, null, null, tranrecord, fileToSend);
 			}
 			
@@ -791,14 +814,14 @@ function sendEmailForApproveReject(stRuleResult){
 			nlapiLogExecution('DEBUG', stLogTitle, 'Second Send Email | stRequestorText: ' + stRequestorText + '|' + 'stCreatorText: ' + stCreatorText + '|' + 'stOrigCreator: ' + stOrigCreator + '|' + 'stSubject: ' + stSubject + '| stCWGPRequestor: ' + stCWGPRequestor );
 			//// if approved approved PO and not VB, attached pdf otherwise set attachments to null
 			if(stSendingEmailFor == 'approve' && stBaseRecordType == 'PURCHASEORDER'){
-                nlapiLogExecution('DEBUG', stLogTitle, 'Second Send Email');
+                nlapiLogExecution('DEBUG', stLogTitle, 'Second Send Email Inside');
 				fileToSend.push(nlapiPrintRecord('TRANSACTION', stInternalId, 'DEFAULT', null));
 
                 stBody = replaceAll('{user}',stCWGPRequestor,stBody);
 				nlapiSendEmail(stEmailSender, stRequestor, stSubject, stBody, null, null, tranrecord, fileToSend);
 
                 ////Send To Vendor
-                var blSendToVendor = nlapiGetFieldValue('custbody_cwgp_send_to_vendor_checkbox')
+                var blSendToVendor = nlapiGetFieldValue('custbody_cwgp_sendtovendor')
                 nlapiLogExecution('DEBUG','blSendToVendor',blSendToVendor);
                 if(blSendToVendor){
                     var emailMerger = nlapiCreateEmailMerger('12');
@@ -811,30 +834,34 @@ function sendEmailForApproveReject(stRuleResult){
 
 			}
             ////Send Creator if rejected by A/P Manager role
-			else if(stSendingEmailFor == 'reject' && stBaseRecordType == 'PURCHASEORDER' && (stRoleId == '1066' ||  stRoleId == '1021')){
+			else if(stSendingEmailFor == 'reject' && (stBaseRecordType == 'PURCHASEORDER' || stBaseRecordType == 'VENDORBILL')  && (stRoleId == '1064' ||  stRoleId == '1021')){
                 nlapiLogExecution('DEBUG', stLogTitle, 'Third Send Email | Rejected by A/P Manager');
 				fileToSend = null;
 
-				nlapiSendEmail(stEmailSender, stOrigCreator, stSubject, stBody, null, null, tranrecord, fileToSend);
+                if(!isEmpty(stOrigCreator)){
+					nlapiSendEmail(stEmailSender, stOrigCreator, stSubject, stBody, null, null, tranrecord, fileToSend);
+                }
 			}
             ////Send to Creator and Requestor if rejected by non-A/P Manager role
-            else if(stSendingEmailFor == 'reject' && stBaseRecordType == 'PURCHASEORDER' && (stRoleId != '1066' ||  stRoleId != '1021')){
+            else if(stSendingEmailFor == 'reject' &&  (stBaseRecordType == 'PURCHASEORDER' || stBaseRecordType == 'VENDORBILL') && (stRoleId != '1064' ||  stRoleId != '1021')){
                 nlapiLogExecution('DEBUG', stLogTitle, 'Fourth Send Email | Rejected by non-A/P Manager');
 				fileToSend = null;
 
-				nlapiSendEmail(stEmailSender, stOrigCreator, stSubject, stBody, null, null, tranrecord, fileToSend);
-
+                if(!isEmpty(stOrigCreator)){
+					nlapiSendEmail(stEmailSender, stOrigCreator, stSubject, stBody, null, null, tranrecord, fileToSend);
+                }
+              
                 stBody = replaceAll('{user}',stCWGPRequestor,stBody);
 
                 nlapiLogExecution('DEBUG','Fourth Email Body', stBody);
                 nlapiSendEmail(stEmailSender, stRequestor, stSubject, stBody, null, null, tranrecord, fileToSend);
             }
-            else{
+      		else{
                 nlapiLogExecution('DEBUG', stLogTitle, 'Fifth Send Email');
 
                 stBody = replaceAll('{user}',stCWGPRequestor,stBody);
                 nlapiSendEmail(stEmailSender, stRequestor, stSubject, stBody, null, null, tranrecord, fileToSend);
-            }
+      		}
 			
 		}
 	}catch(e){
@@ -899,3 +926,7 @@ function fixUrlString(templateBody){
 	}
 	return templateBody;
 };
+
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
