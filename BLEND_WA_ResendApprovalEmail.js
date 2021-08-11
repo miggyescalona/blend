@@ -29,22 +29,20 @@ var LOG_TITLE;
 function resendApprovalEmail(type){
     LOG_TITLE = 'resendApprovalEmail';
     try{
-      
           	var recType = nlapiGetRecordType();
             var stApprovalStatus = nlapiGetFieldValue('approvalstatus');
 
-            nlapiLogExecution('DEBUG',LOG_TITLE,'Approval Status: ' + stApprovalStatus);
-      
-      
+            nlapiLogExecution('DEBUG',LOG_TITLE,'Approval Status: ' + stApprovalStatus + '| recType: ' + recType);
+
             var stEmailTemplateId;
             var objLoadEmailTemplate;
             var stBody;
             var stSubject;
       		var recId = nlapiGetRecordId();
-    
+
             if(recType == MAIN_OBJ.RECTYPE.PURCHASEORDER && stApprovalStatus == MAIN_OBJ.APPROVALSTATUS.PENDINGAPPROVAL){    
                 var objPO = nlapiLoadRecord('purchaseorder', recId);
-              
+
               var stApprover;
               var customrecord_nsts_gaw_approver_listSearch = nlapiSearchRecord("customrecord_nsts_gaw_approver_list",null,
               [
@@ -105,6 +103,20 @@ function resendApprovalEmail(type){
                 var stDueDate = nlapiGetFieldValue('duedate');
                 var stDueNotif;
                 var stEntity = nlapiGetFieldText('entity');
+                var stTotal = numberWithCommas(nlapiGetFieldValue('total'));
+                var intCurrency = nlapiGetFieldValue('currency');
+                if(intCurrency == '1' || intCurrency == '3'){
+                    stTotal = '$'+stTotal;
+                }
+                else if(intCurrency == '2'){
+                    stTotal = '£'+stTotal;
+                }
+                else if(intCurrency == '4'){
+                    stTotal = '€'+stTotal;
+                }
+                else if(intCurrency == '5'){
+                    stTotal == 'Fr.'+stTotal
+                }
 
                 if(!isEmpty(stDueDate)){
                     stDueNotif = getDueDateDiff(stDueDate);
@@ -131,6 +143,7 @@ function resendApprovalEmail(type){
                     stCreator               : isEmptyReplaceWith(stCreator,''),
                     stDueNotif              : isEmptyReplaceWith(stDueNotif,''),
                     stEntity                : isEmptyReplaceWith(stEntity,''),
+                    stTotal                : isEmptyReplaceWith(stTotal,''),
                 }
 
                 GetEmailTemplate(true, MAIN_OBJ.RECTYPE.PURCHASEORDER, objTranInfoPlaceHolder,objPO,objLoadEmailTemplate);
@@ -179,6 +192,10 @@ function resendApprovalEmail(type){
             }
             else if(recType == MAIN_OBJ.RECTYPE.VENDORBILL && stApprovalStatus == MAIN_OBJ.APPROVALSTATUS.PENDINGAPPROVAL){
                 var objVB = nlapiLoadRecord('vendorbill', recId);
+              	var id = nlapiSubmitRecord(objVB, true);
+                var objVB = nlapiLoadRecord('vendorbill', recId);
+              	var id = nlapiSubmitRecord(objVB, true);
+              	nlapiLogExecution('DEBUG','id',id);
               
                   var stApprover;
                   var customrecord_nsts_gaw_approver_listSearch = nlapiSearchRecord("customrecord_nsts_gaw_approver_list",null,
@@ -260,7 +277,8 @@ function resendApprovalEmail(type){
                     stCreator               : isEmptyReplaceWith(stCreator,''),
                     stDueNotif              : isEmptyReplaceWith(stDueNotif,''),
                     stEntity                : isEmptyReplaceWith(stEntity,''),
-                    stBillNo                : isEmptyReplaceWith(stBillNo,'')
+                    stBillNo                : isEmptyReplaceWith(stBillNo,''),
+                    stTotal                : isEmptyReplaceWith(stTotal,''),
                 }
 
                 GetEmailTemplate(true, MAIN_OBJ.RECTYPE.PURCHASEORDER, objTranInfoPlaceHolder,objVB,objLoadEmailTemplate);
@@ -466,4 +484,8 @@ function getMainRoleRecipient(stRoleResult){
 	}catch(error){
 		nlapiLogExecution('ERROR',LOG_TITLE,error);      
 	}
+}
+
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
