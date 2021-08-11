@@ -17,8 +17,9 @@
 * 1.02    Edit    2 Mar 2015      Rose Ann Ilagan
 * 2.00    Edit    16 Mar 2015     Rachelle Ann Barcelona                Added TDD Enhancements
 * 2.00    Edit    16 Mar 2015     Rose Ann Ilagan                       Optimize code and added email approval authentication
-*                 22 June 2021    Paolo Escalona                        Added stEntity to include vendor name on subject
-*                 29 July 2021    Paolo Escalona                        Rejected VBs exclude notif to creator 'ap clerk' if rejected by 'ap manager'
+*                 22 June 2021    Miggy Escalona                        Added stEntity to include vendor name on subject
+*                 29 July 2021    Miggy Escalona                        Rejected VBs exclude notif to creator 'ap clerk' if rejected by 'ap manager'
+*			       6 Aug  2021    Miggy Escalona                        Fix record URL for rejected POs
 */
 
 //**********************************************************************GLOBAL VARIABLE DECLARATION - STARTS HERE**********************************************//
@@ -741,6 +742,9 @@ function sendEmailForApproveReject(stRuleResult){
 		if(stRequestor != stCreator)
 			stOrigCreator = stCreator;
 		stRecordUrl         = nlapiResolveURL('RECORD', stTransRecordType, stInternalId);
+        var accountId = getAccountIDfromURL(stRecordUrl)
+      	stRecordUrl = 'https://' + accountId +'.app.netsuite.com'+ stRecordUrl;
+      	nlapiLogExecution('debug', 'stRecordUrl', 'stRecordUrl: ' + stRecordUrl);
 	
 		var stEmailBody                 = GetEmailTemplateForApproveReject(stSendingEmailFor,stInternalId,stBaseRecordType);
 		var tranrecord                  = [];
@@ -929,4 +933,11 @@ function fixUrlString(templateBody){
 
 function numberWithCommas(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function getAccountIDfromURL(param) {
+    var vars = param.split("&compid=");
+    vars = vars[vars.length-1]
+    vars = vars.replace("_","-");
+    return vars;
 }
