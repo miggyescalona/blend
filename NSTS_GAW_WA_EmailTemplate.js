@@ -105,6 +105,7 @@ function GetEmailTemplate(bIsWithECP,type,objTransInfo,objLoadRecord,objLoadEmai
     var stEntity                = objTransInfo.stEntity;
     var stDueNotif              = objTransInfo.stDueNotif;
     var stBillNo                = objTransInfo.stBillNo;
+    var stTotal                 = objTransInfo.stTotal;
     if(isEmpty(stDueNotif)){
         stDueNotif = '';
     }
@@ -187,6 +188,7 @@ function GetEmailTemplate(bIsWithECP,type,objTransInfo,objLoadRecord,objLoadEmai
         stSubject          = replaceAll('{stEntity}',stEntity,stSubject);
         stSubject          = replaceAll('{stDueNotif}',stDueNotif,stSubject);
         stSubject          = replaceAll('{stBillNo}',stBillNo,stSubject);
+        stSubject          = replaceAll('{stTotal}',stTotal,stSubject);
         HC_PENDING_APPROVAL_SUBJECT = stSubject;
         
         var objRenderer = nlapiCreateTemplateRenderer();
@@ -245,6 +247,7 @@ function GetEmailTemplate(bIsWithECP,type,objTransInfo,objLoadRecord,objLoadEmai
         stSubject          = replaceAll('{stEntity}',stEntity,stSubject);
         stSubject          = replaceAll('{stDueNotif}',stDueNotif,stSubject);
         stSubject          = replaceAll('{stBillNo}',stBillNo,stSubject);
+        stSubject          = replaceAll('{stTotal}',stTotal,stSubject);
         HC_PENDING_APPROVAL_SUBJECT = stSubject;
         
         var objRenderer = nlapiCreateTemplateRenderer();
