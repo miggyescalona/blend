@@ -14,6 +14,8 @@
  *  7 July 2021        Miggy Escalona      Added PO# Column on Saved Search
  *  14 July 2021       Miggy Escalona      Added Related POs
  *  16 July 2021       Miggy Escalona	   Added Related PO count
+ *  21 July 2021       Miggy Escalona      Added Currency
+ *  28 July 2021       Miggy Escalona      Include 'Pending Bill' on Related POs computation/formula
  */
 
  var VB_OBJ = {
@@ -56,13 +58,13 @@ function beforeSubmit(scriptContext) {
                 }
                 if(isEmpty(objRelatedPO)) { 
                         newRec.setValue(VB_OBJ.MAIN.RELATEDPO, null);
+                        newRec.setValue(VB_OBJ.MAIN.RELATEDPOCOUNT,null);
                 } 
                 else {
                     newRec.setValue(VB_OBJ.MAIN.RELATEDPO, JSON.stringify(objRelatedPO));
                     var intRelatedPOcount = objRelatedPO.map( (value) => value.ponum).filter( (value, index, _arr) => _arr.indexOf(value) == index);
                     newRec.setValue(VB_OBJ.MAIN.RELATEDPOCOUNT,intRelatedPOcount.length);
-                }
-                
+                }  
         }
 
         if(__CONFIG.EVENT_TYPE.indexOf(scriptContext.type) == -1) return;
@@ -160,6 +162,10 @@ function getRecentVendorBill(objParams) {
             SEARCH.createColumn({
                 name    : "custbody_cwgp_vbcreatedfrom", 
                 label   : "Created From"
+            }),
+            SEARCH.createColumn({
+                name    : "currency", 
+                label   : "Currency"
             })
         ]
     });
@@ -176,7 +182,8 @@ function getRecentVendorBill(objParams) {
                 amount : element.getValue('amount'),
                 status : element.getText('statusref'),
                 amountpaid : element.getValue('amountpaid'),
-                createdfrom: element.getValue('custbody_cwgp_vbcreatedfrom')
+                createdfrom: element.getValue('custbody_cwgp_vbcreatedfrom'),
+                currency: element.getText('currency')
             }
             arrReturn.push(objReturn);
             loop++;
@@ -192,8 +199,6 @@ function getRecentVendorBill(objParams) {
 
 function getRelatedPurchaseOrder(internalid){
     var objResult = {};
-    var objReturn = {};
-    var arrReturn = [];
     var objSearch = SEARCH.create({
         type: "transaction",
         filters:
@@ -241,34 +246,23 @@ function getRelatedPurchaseOrder(internalid){
               label: "Department"
            }),
            SEARCH.createColumn({
-                name: "formulatext_2",
-                formula: "case when {status} = 'Open' then {amount} else 0 end",
-                label: "Approved Bills [e]"
-            }),
-           SEARCH.createColumn({
                 name: "internalid",
                 join: "appliedToTransaction",
                 label: "Internal ID"
             }),
+            SEARCH.createColumn({
+                name: "currency",
+                join: "appliedToTransaction",
+                label: "Currency"
+             }),
         ]
      });
      var searchResultCount = objSearch.runPaged().count;
      log.debug('searchResultCount',searchResultCount);
+     var arrRelatedPOs = [];
      if(searchResultCount > 0){
         var objResult = objSearch.run();
         objResult.each(function(element) {
-                /*objReturn = {
-                    ponum : element.getValue('formulatext'),
-                    item : element.getText({name: 'item', join:'appliedToTransaction'}),
-                    memo : element.getValue({name: 'memo', join:'appliedToTransaction'}),
-                    amount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
-                    poamount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
-                    startdate : element.getValue({name: 'custcol_cwgp_startdate', join:'appliedToTransaction'}),
-                    enddate : element.getValue({name: 'custcol_cwgp_enddate', join:'appliedToTransaction'}),
-                    department: element.getText({name: 'department', join:'appliedToTransaction'}),
-                    internalid : element.getValue({name: 'internalid', join:'appliedToTransaction'})
-                }*/
-
                 if (objRelatedPO.length > 0) {
                     temp = objRelatedPO.filter(function(arrLines) {
                         return arrLines.internalid == element.getValue({name:"internalid", join:"appliedToTransaction"});
@@ -279,24 +273,15 @@ function getRelatedPurchaseOrder(internalid){
                             ponum : element.getValue('formulatext'),
                             item : element.getText({name: 'item', join:'appliedToTransaction'}),
                             memo : element.getValue({name: 'memo', join:'appliedToTransaction'}),
-                            amount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
-                            poamount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
                             startdate : element.getValue({name: 'custcol_cwgp_startdate', join:'appliedToTransaction'}),
                             enddate : element.getValue({name: 'custcol_cwgp_enddate', join:'appliedToTransaction'}),
                             department: element.getText({name: 'department', join:'appliedToTransaction'}),
-                            approvedbillsamt : element.getValue('formulatext_2'),
+                            currency: element.getText({name: 'currency', join:'appliedToTransaction'}),
+                            internalid: element.getValue({name:"internalid", join:"appliedToTransaction"})
                         };
 
                         objRelatedPO.push(objLines);
-                    }
-                    else{
-                        if(temp[0].internalid == element.getValue({name:"internalid", join:"appliedToTransaction"})){
-                            var poamt = parseFloat(temp[0].poamount) + parseFloat(element.getValue({name: 'amount', join:'appliedToTransaction'}));
-                            var apprvbill = parseFloat(temp[0].approvedbillsamt) + parseFloat(element.getValue('formulatext_2'));
-                            
-                            temp[0].poamount = JSON.stringify(poamt - apprvbill);
-                            temp[0].approvedbillsamt = JSON.stringify(apprvbill);
-                        }
+                        arrRelatedPOs.push(element.getValue({name:"internalid", join:"appliedToTransaction"}));
                     }
                 }
 
@@ -305,21 +290,120 @@ function getRelatedPurchaseOrder(internalid){
                         ponum : element.getValue('formulatext'),
                         item : element.getText({name: 'item', join:'appliedToTransaction'}),
                         memo : element.getValue({name: 'memo', join:'appliedToTransaction'}),
-                        amount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
-                        poamount : element.getValue({name: 'amount', join:'appliedToTransaction'}),
                         startdate : element.getValue({name: 'custcol_cwgp_startdate', join:'appliedToTransaction'}),
                         enddate : element.getValue({name: 'custcol_cwgp_enddate', join:'appliedToTransaction'}),
                         department: element.getText({name: 'department', join:'appliedToTransaction'}),
-                        approvedbillsamt : element.getValue('formulatext_2'),
+                        currency: element.getText({name: 'currency', join:'appliedToTransaction'}),
+                        internalid: element.getValue({name:"internalid", join:"appliedToTransaction"})
                     };
 
                     objRelatedPO.push(objLines);
+                    arrRelatedPOs.push(element.getValue({name:"internalid", join:"appliedToTransaction"}));
                 }
-                //arrReturn.push(objReturn);
                 return true;
         });
     }
-     //return arrReturn;
+
+    var arrApprvPOamt = [];
+    log.debug('arrRelatedPOs',JSON.stringify(arrRelatedPOs));
+    ////Get Approved Bill amount against PO
+    if(!isEmpty(objRelatedPO) && !isEmpty(arrRelatedPOs)){
+        var purchaseorderSearchObj = SEARCH.create({
+            type: "purchaseorder",
+            filters:
+            [
+            ["internalid","anyof",arrRelatedPOs], 
+            "AND", 
+            ["type","anyof","PurchOrd"]
+            ],
+            columns:
+            [
+            SEARCH.createColumn({name: "internalid", label: "Internal ID"}),
+            SEARCH.createColumn({
+                name: "formulanumeric",
+                formula: "case when {applyingtransaction.status} = 'Open' OR {applyingtransaction.status} = 'Pending Approval' OR {applyingtransaction.status} = 'Paid In Full' then {applyingtransaction.amount} else 0 end",
+                label: "Formula (Numeric)"
+            }),
+            SEARCH.createColumn({
+                name: "internalid",
+                join: "applyingTransaction",
+                label: "Internal ID"
+            })
+            ]
+        });
+        var searchResultCount = purchaseorderSearchObj.runPaged().count;
+        log.debug("purchaseorderSearchObj result count",searchResultCount);
+        if(searchResultCount > 0){
+            var objResult = purchaseorderSearchObj.run();
+            objResult.each(function(element) {
+                var temp2 = [];
+                if(arrApprvPOamt.length > 0){
+                    temp2 = arrApprvPOamt.filter(function(arrLines) {
+                        return arrLines.internalid == element.getValue({name:"internalid"});
+                    });
+                }
+                if(temp2.length == 0){
+                        var objLines = {
+                            internalid : element.getValue({name: 'internalid'}),
+                            poapprvamt : element.getValue({name: 'formulanumeric'}),
+                        };
+                        arrApprvPOamt.push(objLines);
+                }
+                else{
+                    if(temp2[0].internalid == element.getValue({name:"internalid"})){
+                            log.debug(element.getValue({name: 'formulanumeric'}));
+                            var poapprvamt = parseFloat(temp2[0].poapprvamt) + parseFloat(element.getValue({name: 'formulanumeric'}));
+                            
+                            temp2[0].poapprvamt = poapprvamt;
+                    }
+                }
+
+                
+
+                log.debug(JSON.stringify(arrApprvPOamt));
+
+                return true;
+            });
+
+            for(var x = 0; x < arrApprvPOamt.length;x++){
+                var obj = objRelatedPO.find((o, i) => {
+                    if (o.internalid === arrApprvPOamt[x].internalid) {
+                        o.poapprvamt = JSON.stringify(arrApprvPOamt[x].poapprvamt);
+                        return true; // stop searching
+                    }
+                });
+            }
+        }
+    
+    
+        ///Get PO Amount
+        var transactionSearchObj = SEARCH.create({
+            type: "transaction",
+            filters:
+            [
+            ["internalid","anyof",arrRelatedPOs], 
+            "AND", 
+            ["mainline","is","T"]
+            ],
+            columns:
+            [
+                SEARCH.createColumn({name: "amount", label: "Amount"}),
+                SEARCH.createColumn({name: "internalid", label: "Internal ID"})
+            ]
+        });
+        var searchResultCount = transactionSearchObj.runPaged().count;
+        log.debug("transactionSearchObj result count",searchResultCount);
+        transactionSearchObj.run().each(function(result){
+            var obj = objRelatedPO.find((o, i) => {
+                if (o.internalid === result.getValue({name:"internalid"})) {
+                    o.pototalamt = result.getValue({name:"amount"});
+                    return true; // stop searching
+                }
+            });
+
+            return true;
+        });
+    }
 }
 
 function isEmpty(stValue) {
