@@ -10,7 +10,7 @@
  * 
  *  Date Modified       Modified By         Notes
  *  01 April 2021       Paolo Escalona      Initial Version
- *  24 May 2021         Paolo Escalona		Include Paid In Full and Pending Approval Bills (previously Open Bills only)
+ *  24 May 2021         Paolo Escalona		Include Paid In Full, Open, and Pending Approval Bills on Billed Amount
  */
 
  define(['N/runtime','N/search'], function(runtime,search) {
@@ -20,93 +20,51 @@
           log.debug(context.type)
             if (runtime.executionContext.toUpperCase() == 'USERINTERFACE' && context.type != 'create') {
                 var newRecord = context.newRecord;
-                var totalAmt = 0;
-                var amountToBeBilled = 0;
-                var newAmountToBeBilled = 0;
+                var totalBilled = 0;
+                var remainingAmountToBilled = 0;
                    
 
-                var purchaseorderSearchObj = search.create({
+                 var purchaseorderSearchObj = search.create({
                     type: "purchaseorder",
                     filters:
                     [
-                       ["type","anyof","PurchOrd"], 
-                       "AND", 
                        ["internalid","anyof",newRecord.id], 
                        "AND", 
-                       ["billingtransaction.internalidnumber","isnotempty",""],
-                       "AND", 
-                       ["billingtransaction.status","anyof","VendBill:A","VendBill:B","VendBill:D"]
+                       ["type","anyof","PurchOrd"]
                     ],
                     columns:
                     [
-                       search.createColumn({name: "linesequencenumber", label: "Line Sequence Number"}),
+                       search.createColumn({name: "transactionname", label: "Transaction Name"}),
+                       search.createColumn({name: "internalid", label: "Internal ID"}),
                        search.createColumn({
-                          name: "amount",
-                          join: "billingTransaction",
-                          label: "Amount"
+                          name: "formulanumeric",
+                          formula: "case when {applyingtransaction.status} = 'Open' OR {applyingtransaction.status} = 'Pending Approval' OR {applyingtransaction.status} = 'Paid In Full' then {applyingtransaction.amount} else 0 end",
+                          label: "Approved Bill Amount"
                        }),
                        search.createColumn({
                           name: "internalid",
-                          join: "billingTransaction",
+                          join: "applyingTransaction",
                           label: "Internal ID"
-                       }),
-                       search.createColumn({
-                        name: "total",
-                        join: "billingTransaction",
-                        label: "Amount (Transaction Total)"
-                     })
+                       })
                     ]
                  });
+
                  var searchResultCount = purchaseorderSearchObj.runPaged().count;
                  log.debug("purchaseorderSearchObj result count",searchResultCount);
-                 var arr = [];
-                 var temp = [];
                  purchaseorderSearchObj.run().each(function(result){
-                    var amt = result.getValue({name:"total", join:"billingTransaction"});
-                    var intId = result.getValue({name:"internalid", join:"billingTransaction"});
-                    if(!isEmpty(amt)){
-                        totalAmt += parseFloat(amt);
-
-                        if (arr.length > 0) {
-                            temp = arr.filter(function(arrLines) {
-                                return arrLines.intId == intId;
-                            });
-
-                            if(temp.length == 0){
-                                var objLines = {
-                                    intId: result.getValue({name:"internalid", join:"billingTransaction"}),
-                                    intAmount: amt
-                                };
-
-                                arr.push(objLines);
-                            }
-                        }
-
-                        if(arr.length == 0){
-                            var objLines = {
-                                intId: result.getValue({name:"internalid", join:"billingTransaction"}),
-                                intAmount: amt
-                            };
-
-                            arr.push(objLines);
-                        }
+                    var billedamt = result.getValue({name:"formulanumeric"});
+                    if(!isEmpty(billedamt)){
+                        totalBilled += parseFloat(billedamt);
                     }
                     return true;
                  });
 
-                 var totalAmount = 0;
-                 for(var x = 0; x < arr.length; x++){
-                     totalAmount += parseFloat(arr[x].intAmount);
-                 }
 
-                 log.debug('Total Amount',totalAmount);
+                 log.debug('Total Amount',totalBilled);
 
                  
-
-                 var totalBilled = totalAmt;
                  if(!isEmpty(totalBilled)){
-                    amountToBeBilled = newRecord.getValue('total') - totalBilled;
-                    newAmountToBeBilled = newRecord.getValue('total') - totalAmount;
+                    remainingAmountToBilled = newRecord.getValue('total') - totalBilled;
                  }
 
 
@@ -117,7 +75,7 @@
                 });
                 var defaultVal = "<script>";
                 defaultVal += "jQuery( document ).ready(function() {jQuery('.totallingtable tbody').append('<tr><td><div class=";
-                defaultVal += '"uir-field-wrapper" data-field-type="currency"><span id="total_fs_lbl_uir_label" class="smalltextnolink uir-label"><span id="total_fs_lbl" class="smalltextnolink">Total Amount Billed</span></span><span class="uir-field inputreadonly"><span id="total_fs" class="inputtotalling"><span id="total_val" class="inputtotalling" datatype="currency">'+numberWithCommas(totalAmount.toFixed(2))+'</span></span></span></div></td></tr>';
+                defaultVal += '"uir-field-wrapper" data-field-type="currency"><span id="total_fs_lbl_uir_label" class="smalltextnolink uir-label"><span id="total_fs_lbl" class="smalltextnolink">Total Amount Billed</span></span><span class="uir-field inputreadonly"><span id="total_fs" class="inputtotalling"><span id="total_val" class="inputtotalling" datatype="currency">'+numberWithCommas(totalBilled.toFixed(2))+'</span></span></span></div></td></tr>';
                 defaultVal += "')});";
                 defaultVal += "</script>";
                 log.debug('jquery string',defaultVal);
@@ -131,7 +89,7 @@
                 });
                 var defaultVal2 = "<script>";
                 defaultVal2 += "jQuery( document ).ready(function() {jQuery('.totallingtable tbody').append('<tr><td><div class=";
-                defaultVal2 += '"uir-field-wrapper" data-field-type="currency"><span id="total_fs_lbl_uir_label" class="smalltextnolink uir-label"><span id="total_fs_lbl" class="smalltextnolink">Remaining Amount To Be Billed</span></span><span class="uir-field inputreadonly"><span id="total_fs" class="inputtotalling"><span id="total_val" class="inputtotalling" datatype="currency">'+numberWithCommas(newAmountToBeBilled.toFixed(2))+'</span></span></span></div></td></tr>';
+                defaultVal2 += '"uir-field-wrapper" data-field-type="currency"><span id="total_fs_lbl_uir_label" class="smalltextnolink uir-label"><span id="total_fs_lbl" class="smalltextnolink">Remaining Amount To Be Billed</span></span><span class="uir-field inputreadonly"><span id="total_fs" class="inputtotalling"><span id="total_val" class="inputtotalling" datatype="currency">'+numberWithCommas(remainingAmountToBilled.toFixed(2))+'</span></span></span></div></td></tr>';
                 defaultVal2 += "')});";
                 defaultVal2 += "</script>";
                 log.debug('jquery string',defaultVal2);
