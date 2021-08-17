@@ -7,13 +7,13 @@
   /**
  * 
  * Date : 17 May 2021   
- * Author : Paolo Escalona
+ * Author : Miggy Escalona
  * 
  *  Date Modified       Modified By         Notes
  *  17 May 2021         Miggy Escalona      Initial Version
  *  08 June 2021        Miggy Escalona      Pass input (SO number, error message) to summary stage
  *  27 July 2021        Miggy Escalona	    Update customerparent to customerparentid, update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant.value
- *  27 July 2021		Miggy Escalona      Changed author from -5 to 41225
+ *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
  */
 
 
@@ -29,12 +29,17 @@ var MR_OBJ = {
         HYBRID: 'customsearch_cwgp_script_indvclosehybrid',
         PARENTCHILDMAPPING: 'customsearch_cwgp_script_hybridparentchi',
         SALESORDER: 'customsearch_cwgp_script_customersalesor'
+    },
+    SCRIPTID: {
+        SOTOINV: '896',
+        UPDATEREC: '897',
+        CSVATTACH: '898'
     }
 }
 
 var LOG_NAME;
 var CSV_FOLDER = 1823567;
-define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file'], function(runtime,search,record,task,runtime,email,file) {
+define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], function(runtime,search,record,task,runtime,email) {
 
     function getInputData() {
         LOG_NAME = 'getInputData';
@@ -226,7 +231,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
             body = body.replace('undefined','');
 
             email.send({
-                author: 41225,
+                author: -5,
                 recipients: currentUser,
                 subject: 'Hi, the close hybrid records you have submitted has been completed.',
                 body: body
@@ -236,13 +241,43 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email','N/file
             params['custscript_cwgp_objcsv'] = arrValues;
 
 
-            var mrTask = task.create({
-                taskType: task.TaskType.MAP_REDUCE,
-                scriptId: 'customscript_cwgp_mr_closehybridcsvattac',
-            });
 
-            mrTask.params = params;
-            mrTaskId = mrTask.submit();
+            try{
+                var mrTask = task.create({
+                    taskType: task.TaskType.MAP_REDUCE,
+                    scriptId: 'customscript_cwgp_mr_closehybridcsvattac',
+                });
+
+                log.debug('params1',JSON.stringify(params));
+
+                mrTask.params = params;
+                mrTaskId = mrTask.submit();
+            }
+            catch(e){
+                ///Catch if first submission failed (no available deployment)
+                var rec = record.create ({
+                    type: record.Type.SCRIPT_DEPLOYMENT,
+                    defaultValues: {
+                        script: MR_OBJ.SCRIPTID.CSVATTACH //scriptId
+                     }
+                });
+                var recId = rec.save();
+    
+                if(!isEmpty(recId)){
+                    log.debug('No Available Deployment, Entering Retry');
+                    var mrTask = task.create({
+                        taskType: task.TaskType.MAP_REDUCE,
+                        scriptId: 'customscript_cwgp_mr_closehybridcsvattac',
+                    });
+
+                    
+                    log.debug('params2',JSON.stringify(params));
+
+                    mrTask.params = params;
+                    mrTaskId = mrTask.submit();
+                    log.debug('re-try mrTaskId', mrTaskId);
+                }
+            }
         }
         catch(e){
             log.error(LOG_NAME,e);
