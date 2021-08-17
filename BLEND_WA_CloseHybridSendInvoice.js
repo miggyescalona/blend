@@ -13,9 +13,14 @@
  *   27 June 2021       Miggy Escalona      Changed author from -5 to 41225, get additional email recipients from customer record
  */
 
+ var WA_OBJ = {
+    PARAMETER: {
+        AUTHOR: '41225', ////41225 in Prod, 25142 in SB
+    },
+}
 
-  var CSV_FOLDER = 1823567;
-  var PDF_FOLDER = 1823568;
+ var CSV_FOLDER = 1823567;
+ var PDF_FOLDER = 1823568;
  define(['N/record','N/file','N/search','N/email','N/record'], function(record,file,search,email,record) {
 
     function onAction(context) {
@@ -101,18 +106,22 @@
            }
 
             arrEmail.push(objCustomer.getValue('email'));
+            var arrCC = [];
+            arrCC.push(WA_OBJ.PARAMETER.AUTHOR);
             var stSubject = 'Blend Labs, Inc. Invoice ' + newRec.getValue('tranid');
 
             email.send({
-                author: 41225,
-                recipients: stCusEmail,
+                author: WA_OBJ.PARAMETER.AUTHOR,
+                recipients: arrEmail,
                 subject: stSubject,
                 body: stBody,
                 attachments: arrFileObj,
+                cc: arrCC,
                 relatedRecords: {
                     transactionId: newRec.id
                 }
             });
+
     }
     catch(e){
         log.error('onAction',e);
