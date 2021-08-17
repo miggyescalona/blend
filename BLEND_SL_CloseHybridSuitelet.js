@@ -12,7 +12,7 @@
  *  14 May 2021         Miggy Escalona      Initial Version
  *  26 May 2021         Miggy Escalona      Removed parent/child search, use parent customer column from grouped search. Removed Customer Child and Tenant columns.
  *  9  August 2021      Miggy Escalona      Exclude Custom Records tagged as 'D' on Close Usage Count
- *  9  August 2021      Miggy Escalona      Fixed dateFrom to dateTo to show correct usage coung
+ *  9  August 2021      Miggy Escalona      Fixed dateFrom to dateTo to show correct usage count
  *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
  */
 
