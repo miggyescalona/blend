@@ -7,11 +7,12 @@
   /**
  * 
  * Date : 16 June 2021  
- * Author : Paolo Escalona
+ * Author : Miggy Escalona
  * 
  *  Date Modified       Modified By         Notes
  *  16 June 2021        Miggy Escalona      Initial Version
  *  27 June 2021	    Miggy Escalona	    update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant
+ *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
  */
 
 
