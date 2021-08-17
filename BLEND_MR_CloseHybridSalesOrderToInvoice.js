@@ -7,10 +7,12 @@
   /**
  * 
  * Date : 14 May 2021   
- * Author : Paolo Escalona
+ * Author : Miggy Escalona
  * 
  *  Date Modified       Modified By         Notes
- *  14 May 2021         Paolo Escalona      Initial Version
+ *  14 May 2021         Miggy Escalona      Initial Version
+ *  9 August 2021       Miggy Escalona      Match Close Type selected to Item's Close Type on SO
+ *  9 August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
  */
 
 
@@ -32,6 +34,11 @@ var MR_OBJ = {
         TYPE_HYBRID: '2',
         TYPE_RON: '1',
         TYPE_TRADITIONAL:'3'
+    },
+    SCRIPTID: {
+        SOTOINV: '896',
+        UPDATEREC: '897',
+        CSVATTACH: '898'
     }
 }
 
@@ -140,7 +147,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                             line: z
                         });
 
-                        var intItemCloseUsageType = objSO.getCurrentSublistValue({
+                        var intItemCloseUsageType = objSO.getCurrentSublistText({
                             sublistId: 'item',
                             fieldId: 'custcol_cwgp_closeusagetype'
                         });
@@ -151,8 +158,11 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         });
 
                         log.debug('intItem',intItem);
+                        
+                        log.debug('intItemCloseUsageType | arrValues[x].closetype', intItemCloseUsageType  +'|' + arrValues[x].closetype);
 
-                        if(intItemCloseUsageType == MR_OBJ.VALUES.TYPE_HYBRID || intItemCloseUsageType == MR_OBJ.VALUES.TYPE_RON){
+
+                        if(intItemCloseUsageType == arrValues[x].closetype){
                                 var intRate = objSO.getCurrentSublistValue({
                                     sublistId: 'item',
                                     fieldId: 'rate'
@@ -463,14 +473,37 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
             params['custscript_cwgp_currentuserupdaterec'] = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.CURRENTUSER);
 
 
+            try{
+                var mrTask = task.create({
+                    taskType: task.TaskType.MAP_REDUCE,
+                    scriptId: 'customscript_cwgp_mr_clsehybridupdaterec',
+                });
 
-            var mrTask = task.create({
-                taskType: task.TaskType.MAP_REDUCE,
-                scriptId: 'customscript_cwgp_mr_clsehybridupdaterec',
-            });
+                mrTask.params = params;
+                mrTaskId = mrTask.submit();
+            }
+            catch(e){
+                ///Catch if first submission failed (no available deployment)
+                var rec = record.create ({
+                    type: record.Type.SCRIPT_DEPLOYMENT,
+                    defaultValues: {
+                        script: MR_OBJ.SCRIPTID.UPDATEREC//scriptId
+                     }
+                });
+                var recId = rec.save();
+    
+                if(!isEmpty(recId)){
+                    log.debug('No Available Deployment, Entering Retry');
+                    var mrTask = task.create({
+                        taskType: task.TaskType.MAP_REDUCE,
+                        scriptId: 'customscript_cwgp_mr_clsehybridupdaterec',
+                    });
 
-            mrTask.params = params;
-            mrTaskId = mrTask.submit();
+                    mrTask.params = params;
+                    mrTaskId = mrTask.submit();
+                    log.debug('re-try mrTaskId', mrTaskId);
+                }
+            }
         }
         catch(e){
             log.error(LOG_NAME,e);
