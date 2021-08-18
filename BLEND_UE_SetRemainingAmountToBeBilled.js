@@ -11,7 +11,6 @@
  *  Date Modified       Modified By         Notes
  *  01 April 2021       Miggy Escalona      Initial Version
  *  24 May 2021         Miggy Escalona		Include Paid In Full, Open, and Pending Approval Bills on Billed Amount
- *  18 August 2021		Miggy Escalona		Excluded Pending Approval
  */
 
  define(['N/runtime','N/search'], function(runtime,search) {
@@ -39,7 +38,7 @@
                        search.createColumn({name: "internalid", label: "Internal ID"}),
                        search.createColumn({
                           name: "formulanumeric",
-                          formula: "case when {applyingtransaction.status} = 'Open' OR {applyingtransaction.status} = 'Paid In Full' then {applyingtransaction.amount} else 0 end",
+                          formula: "case when {applyingtransaction.status} = 'Open' OR  {applyingtransaction.status} = 'Pending Approval' OR {applyingtransaction.status} = 'Paid In Full' then {applyingtransaction.amount} else 0 end",
                           label: "Approved Bill Amount"
                        }),
                        search.createColumn({
