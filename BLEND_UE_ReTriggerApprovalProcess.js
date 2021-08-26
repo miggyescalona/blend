@@ -9,6 +9,7 @@
  * 
  * Date         Modified By             Notes
  * 2020-01-05  Paolo Miguel Escalona   Initial script creation
+ * 2021-07-02  Paolo Miguel Escalona   Add beforeSubmit condition to check if record is created via Make Copy/Create, if yes, clear out the following fields: Retrigger, Single Approval and Reapproval Notif
  */
   var MAIN_OBJ 	= {
     FIELDS	:	{
@@ -19,16 +20,13 @@
         TRANDATE: 'trandate',
         QUANTITY: 'quantity',
         STATUS: 'approvalstatus',
-        RATE: 'rate',
-        AMOUNT: 'amount',
-        ITEM: 'item',
         RETRIGGER: 'custbody_cwgp_retriggerapproval',
         SINGLEAPPROVAL: 'custbody_cwgp_singleapproval',
         REAPPROVALNOTIF: 'custbody_cwgp_reapprovalnotification',
-        EXPSTARTDATE: 'custbody_cwgp_startdate',
-        EXPENDDATE: 'custbody_cwgp_enddate',
-        ITEMSTARTDATE: 'custcol_bl_rev_rec_start',
-        ITEMENDDATE: 'custcol_bl_rev_rec_end'
+        EXPSTARTDATE: 'custcol_cwgp_startdate',
+        EXPENDDATE: 'custcol_cwgp_enddate',
+        ITEMSTARTDATE: 'custcol_cwgp_startdate',
+        ITEMENDDATE: 'custcol_cwgp_enddate'
     },
     SUBLIST : {
         ITEM: 'item',
@@ -58,13 +56,53 @@ var blThreshold = false;
 define(['N/record','N/format','N/runtime','N/search'], function(record,format,runtime,search) {
 
 
+    function beforeLoad(context){
+      
+      /*
+        stLogTitle = 'beforeLoad'
+        var oldRecord = context.newRecord;
+        try{
+            log.debug(stLogTitle,context.type);
+            if(context.type == 'copy'){
+                var blRetrigger = oldRecord.getValue(MAIN_OBJ.FIELDS.RETRIGGER);
+                var blSingleApproval = oldRecord.getValue(MAIN_OBJ.FIELDS.SINGLEAPPROVAL);
+                var blReapproval= oldRecord.getValue(MAIN_OBJ.FIELDS.REAPPROVALNOTIF);
+
+                log.debug(stLogTitle, blRetrigger +'|' + blSingleApproval +'|' + blReapproval);
+
+                oldRecord.setValue(MAIN_OBJ.FIELDS.RETRIGGER,false);
+                oldRecord.setValue(MAIN_OBJ.FIELDS.SINGLEAPPROVAL,false);
+                oldRecord.setValue(MAIN_OBJ.FIELDS.REAPPROVALNOTIF,false);
+            }
+        }
+        catch(e){
+            log.error(stLogTitle,e);
+        }*/
+
+    }
+
+
     function beforeSubmit(context) {
         stLogTitle = 'beforeSubmit';
         try{
+             log.debug(stLogTitle,context.type);
+             if(context.type == 'create'){
+                  var newRecord = context.newRecord;
+                  var blRetrigger = newRecord.getValue(MAIN_OBJ.FIELDS.RETRIGGER);
+                  var blSingleApproval = newRecord.getValue(MAIN_OBJ.FIELDS.SINGLEAPPROVAL);
+                  var blReapproval= newRecord.getValue(MAIN_OBJ.FIELDS.REAPPROVALNOTIF);
+
+                  log.debug(stLogTitle, blRetrigger +'|' + blSingleApproval +'|' + blReapproval);
+
+                  newRecord.setValue(MAIN_OBJ.FIELDS.RETRIGGER,false);
+                  newRecord.setValue(MAIN_OBJ.FIELDS.SINGLEAPPROVAL,false);
+                  newRecord.setValue(MAIN_OBJ.FIELDS.REAPPROVALNOTIF,false);
+           	}
+
             if(context.type == MAIN_OBJ.CONTEXT.EDIT){
                 var oldRecord = context.oldRecord;
                 var newRecord = context.newRecord;
-
+              
 
 
                 if(oldRecord.getValue(MAIN_OBJ.FIELDS.STATUS) == '2'){
@@ -194,11 +232,11 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
         var oTerms = oldRec.getText('terms');
         var totalAmount = oldRec.getValue('total');
 
-        newRec.setValue('custbody_cwgp_oldreqname',reqName);
-        newRec.setValue('custbody_cwgp_oldvendname',vendName);
-        newRec.setValue('custbody_cwgp_oldponum',poNum);
-        newRec.setValue('custbody_cwgp_oldterms',oTerms);
-        newRec.setValue('custbody_cwgp_oldamount',totalAmount);
+        newRec.setValue('custbody_cwgp_old_reqname',reqName);
+        newRec.setValue('custbody_cwgp_old_vendname',vendName);
+        newRec.setValue('custbody_cwgp_old_ponum',poNum);
+        newRec.setValue('custbody_cwgp_old_terms',oTerms);
+        newRec.setValue('custbody_cwgp_old_amount',totalAmount);
 
         ////Get and Push Old Sublist Values
         var oldIntItemCount = oldRec.getLineCount(MAIN_OBJ.SUBLIST.ITEM);
@@ -217,7 +255,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
 
                 var intItemAccountId = oldRec.getSublistText({
                     sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                    fieldId: 'custcol_ava_expenseaccounttext',
+                    fieldId: 'custcol_cwgp_expense_account',
                     line: x
                 });
 
@@ -255,7 +293,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                 oldArr.push(tempObj);
             }
         }
-        newRec.setValue('custbody_cwgpoldvalues',JSON.stringify(oldArr));
+        newRec.setValue('custbody_cwgp_oldvalues',JSON.stringify(oldArr));
 
         ///Get and Push New Sublist Values
         var newIntItemCount = newRec.getLineCount(MAIN_OBJ.SUBLIST.ITEM);
@@ -274,7 +312,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
 
                 var intItemAccountId = newRec.getSublistText({
                     sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                    fieldId: 'custcol_ava_expenseaccounttext',
+                    fieldId: 'custcol_cwgp_expense_account',
                     line: x
                 });
 
@@ -309,7 +347,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
             }
         }
 
-        newRec.setValue('custbody_cwgpnewvalues',JSON.stringify(newArr));
+        newRec.setValue('custbody_cwgp_newvalues',JSON.stringify(newArr));
 
     }
 
@@ -357,25 +395,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         line: x
                     });
 
-                    var intRate = currentRecord.getSublistValue({
-                        sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                        fieldId: MAIN_OBJ.FIELDS.RATE,
-                        line: x
-                    });
-
-                    var intAmount = currentRecord.getSublistValue({
-                        sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                        fieldId: MAIN_OBJ.FIELDS.AMOUNT,
-                        line: x
-                    });
-
-                    var intItem = currentRecord.getSublistValue({
-                        sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                        fieldId: MAIN_OBJ.FIELDS.ITEM,
-                        line: x
-                    });
-
-                    /*var itemStartDate = currentRecord.getSublistValue({
+                    var itemStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.ITEM,
                         fieldId: MAIN_OBJ.FIELDS.ITEMSTARTDATE,
                         line: x
@@ -404,16 +424,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          itemEndDate = formatDate(itemEndDate);
-                    }*/
+                    }
 
 
                     oldRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.RATE,intRate]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.AMOUNT,intAmount]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.ITEM,intItem]);
+                    oldRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
+                    oldRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
                 }
             }
 
@@ -438,14 +457,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         line: x
                     });
 
-                    var intAmount = currentRecord.getSublistValue({
-                        sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
-                        fieldId: MAIN_OBJ.FIELDS.AMOUNT,
-                        line: x
-                    });
-
-
-                   /* var expStartDate = currentRecord.getSublistValue({
+                    var expStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
                         fieldId: MAIN_OBJ.FIELDS.EXPSTARTDATE,
                         line: x
@@ -474,14 +486,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         })
 
                         expEndDate = formatDate(expEndDate);
-                    }*/
+                    }
 
 
                     oldRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.AMOUNT,intAmount]);
+                    oldRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
+                    oldRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
 
                     
                 }
@@ -535,26 +548,8 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                            line: x
                        });
 
-                        var intRate = currentRecord.getSublistValue({
-                            sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                            fieldId: MAIN_OBJ.FIELDS.RATE,
-                        line: x
-                        });
-
-                        var intAmount = currentRecord.getSublistValue({
-                            sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                            fieldId: MAIN_OBJ.FIELDS.AMOUNT,
-                            line: x
-                        });
-
-                        var intItem = currentRecord.getSublistValue({
-                            sublistId: MAIN_OBJ.SUBLIST.ITEM,
-                            fieldId: MAIN_OBJ.FIELDS.ITEM,
-                            line: x
-                        });
-
                           
-                         /* var itemStartDate = currentRecord.getSublistValue({
+                       var itemStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.ITEM,
                         fieldId: MAIN_OBJ.FIELDS.ITEMSTARTDATE,
                         line: x
@@ -585,15 +580,14 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          itemEndDate = formatDate(itemEndDate);
-                    }*/
+                    }
    
                        newRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                        newRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                        newRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                        newRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.RATE,intRate]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.AMOUNT,intAmount]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.ITEM,intItem]);
+                       newRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
+                       newRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
                    }
                }
    
@@ -618,14 +612,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                            line: x
                        });
 
-                          
-                       var intAmount = currentRecord.getSublistValue({
-                            sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
-                            fieldId: MAIN_OBJ.FIELDS.AMOUNT,
-                            line: x
-                        });
-
-                    /*   var expStartDate = currentRecord.getSublistValue({
+                       var expStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
                         fieldId: MAIN_OBJ.FIELDS.EXPSTARTDATE,
                         line: x
@@ -655,14 +642,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          expEndDate = formatDate(expEndDate);
-                    }*/
+                    }
 
    
                        newRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                        newRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                        newRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                        newRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.AMOUNT,intAmount]);
+                       newRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
+                       newRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
                    }
                }
         }
@@ -698,6 +686,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
     
 
     return {
+        beforeLoad: beforeLoad,
         beforeSubmit: beforeSubmit
     }
 });
