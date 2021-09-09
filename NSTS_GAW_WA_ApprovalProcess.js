@@ -17,6 +17,8 @@
 * 1.02    Edit    2 Mar 2015      Rose Ann Ilagan
 * 2.00    Edit    16 Mar 2015     Rachelle Ann Barcelona				Added TDD Enhancements
 * 3.00    Edit    16 Mar 2015     Rose Ann Ilagan						Optimize code and added email approval authentication
+*
+*				  6 Sept 2021	  Miggy Escalona						updateGlobalApprovalList to only update approver field if not triggered by bypassapproval
 */
 
 //**********************************************************************GLOBAL VARIABLE DECLARATION - STARTS HERE**********************************************//
@@ -116,6 +118,7 @@ function setNextApproversToString(){
 function setNextApprovers(){
 	try{ 
 		var stresult 	= nlapiGetContext().getSetting('SCRIPT', 'custscript_nsts_gaw_set_apprvr_param');
+      	nlapiLogExecution('DEBUG','setNextApprovers',stresult);
 		var recTrans 	= nlapiGetNewRecord();
 		if(stresult){
 			recTrans.setFieldValue('nextapprover','');
@@ -623,6 +626,7 @@ function setDelegateOnScheduled()
 		                stInactive = recEmp['isinactive'];
 
 		                if(stInactive == 'T'){
+                            nlapiLogExecution('DEBUG','fieldApprover1');
 		                	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR,FLD_LIST_APPROVER_LINE_STATUS], ['','',HC_STATUS_INACTIVE]);
 		
 		                    //set back the original employee on the transaction
@@ -637,6 +641,7 @@ function setDelegateOnScheduled()
 		                    
 		                }else{
 		                	if(!checkCreatorIsApprover(recordFields, stOrigApp)){
+                                nlapiLogExecution('DEBUG','fieldApprover2',stOrigApp);
 			                	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR], [stOrigApp,'']);
 			                	arrFinalApprovers[iapvr] = stOrigApp;
 								arrChangedApprovers[intChangedApprover++] = stOrigApp;
@@ -652,6 +657,7 @@ function setDelegateOnScheduled()
 			                var recEmp = nlapiLookupField('employee',stEmpId,['isinactive','firstname','lastname']);
 			                stInactive = recEmp['isinactive'];
 			                if(stInactive == 'T'){
+                                nlapiLogExecution('DEBUG','fieldApprover3');
 			                	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR,FLD_LIST_APPROVER_LINE_STATUS], ['','',HC_STATUS_INACTIVE]);
 			
 			                    //set back the original employee on the transaction
@@ -669,7 +675,7 @@ function setDelegateOnScheduled()
 			                    
 			                }else if(stCurApproverid != stEmpId){
 			                	if(!checkCreatorIsApprover(recordFields, stEmpId)){
-
+                                    nlapiLogExecution('DEBUG','fieldApprover4',stEmpId);
 				                	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR], [stEmpId, stOrigApp]);
 				                	arrFinalApprovers[iapvr] = stEmpId;
 									arrChangedApprovers[intChangedApprover++] = stEmpId;
@@ -696,6 +702,7 @@ function setDelegateOnScheduled()
 		                    var recEmp = nlapiLookupField('employee',stEmpId,['isinactive','firstname','lastname']);
 		                    stInactive = recEmp['isinactive'];
 		                    if(stInactive == 'T'){
+                                nlapiLogExecution('DEBUG','fieldApprover5');
 		                    	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR,FLD_LIST_APPROVER_LINE_STATUS], ['', '',HC_STATUS_INACTIVE]);
 		                        //set the delegated employee on the transaction								
 								recIdApprover['approver'] = stEmpId;
@@ -710,7 +717,7 @@ function setDelegateOnScheduled()
 		                        //sendEmailInactive(idPO,stEmpId);    
 		                    }else{
 		                    	if(!checkCreatorIsApprover(recordFields, stEmpId)){
-
+                                    nlapiLogExecution('DEBUG','fieldApprover6',stEmpId);
 			                    	stUpdAppListId = nlapiSubmitField(REC_APPROVER_LIST, stAppListId, [FLD_LIST_TRAN_APPROVER, FLD_LIST_ORIG_APPRVR], [stEmpId, stCurApproverid]);
 			                    	arrFinalApprovers[iapvr] = stEmpId;
 				                    arrChangedApprovers[intChangedApprover++] = stEmpId;
@@ -800,6 +807,8 @@ function updateGlobalApprovalList()
 		var result 		= nlapiGetContext().getSetting('SCRIPT', 'custscript_nsts_gaw_apprvr_list_param1');
         var idApprover  = nlapiGetContext().getSetting('SCRIPT', 'custscript_nsts_gaw_globalapprvr');
         var isParallelApproved  = nlapiGetContext().getSetting('SCRIPT', 'custscript_nsts_gaw_is_parallel_apprvd');
+      	var isBypassApproval  = nlapiGetContext().getSetting('SCRIPT', 'custscript_cwgp_isbypassapproval');
+       	nlapiLogExecution('DEBUG','updateGlobalApprovalList', 'result: ' + result + '| idApprover: ' + idApprover +'| isParallelApproved: ' + isParallelApproved +'| isBypassApproval: ' + isBypassApproval);
         
     	try{
     		var contextName = nlapiGetContext().getName();
@@ -857,7 +866,14 @@ function updateGlobalApprovalList()
                 }
                 if(idRecApproval && !(idRuleName ==HC_APPRVL_TYPE_LIST_APPRVRS || idRuleName ==HC_APPRVL_TYPE_LINE_APPRVRS)){
                    if(idApprover && idApprover !=-1){
-            			nlapiSubmitField(REC_APPROVER_LIST, idRecApproval, [FLD_LIST_APPROVED, FLD_LIST_APPROVER_DATE, FLD_LIST_APPROVER_LINE_STATUS, FLD_LIST_TRAN_APPROVER], ['T', sToday, HC_STATUS_APPROVED, idApprover]);
+                    nlapiLogExecution('DEBUG','fieldApprover7',idApprover);
+                     	//ifBypassApproval is not equal to 1, update approver field
+                     	if(isBypassApproval != 1 || isBypassApproval != '1'){
+            				nlapiSubmitField(REC_APPROVER_LIST, idRecApproval, [FLD_LIST_APPROVED, FLD_LIST_APPROVER_DATE, FLD_LIST_APPROVER_LINE_STATUS, FLD_LIST_TRAN_APPROVER], ['T', sToday, HC_STATUS_APPROVED, idApprover]);
+                     	}
+                     	else{
+                          	nlapiSubmitField(REC_APPROVER_LIST, idRecApproval, [FLD_LIST_APPROVED, FLD_LIST_APPROVER_DATE, FLD_LIST_APPROVER_LINE_STATUS], ['T', sToday, HC_STATUS_APPROVED]);
+                        }
                       	var obj = nlapiLookupField(REC_APPROVER_LIST, idRecApproval, [FLD_LIST_APPROVED, FLD_LIST_APPROVER_DATE, FLD_LIST_APPROVER_LINE_STATUS, FLD_LIST_TRAN_APPROVER]);
                    }else{
                    	nlapiSubmitField(REC_APPROVER_LIST, idRecApproval, [FLD_LIST_APPROVED, FLD_LIST_APPROVER_DATE, FLD_LIST_APPROVER_LINE_STATUS], ['T', sToday, HC_STATUS_APPROVED]);            	
