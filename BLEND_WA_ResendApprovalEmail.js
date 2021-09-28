@@ -6,6 +6,7 @@
  * 2021-04-16  Paolo Miguel Escalona   Initial script creation
  * 2021-07-8   Paolo Miguel Escalona   Include due date calculation and display on subject
  * 2021-07-12  Paolo Escalona          Added stEntity to include vendor name on subject
+ * 13 Sept 2021	  Miggy Escalona	   Exclude files > 10mb 
  */
 var MAIN_OBJ 	= {
     FIELDS	:	{
@@ -389,26 +390,33 @@ function searchFilesAttached(stInternalId){
             "AND", 
             ["mainline","is","T"], 
             "AND", 
+            ["file.documentsize","lessthan","10000"], 
+            "AND", 
             ["file.name","isnotempty",""]
-            ], 
+        ], 
         [
             new nlobjSearchColumn("internalid","file",null), 
-            new nlobjSearchColumn("name","file",null)
+            new nlobjSearchColumn("name","file",null),
+            new nlobjSearchColumn("documentsize","file",null), 
         ]
         );
-
 		
+		var fileSize = 0;
 		if(results){
 			nlapiLogExecution('debug', LOG_TITLE, 'results ' + results.length);
 			for(var i = 0; i < results.length; i++){
                 var result1 = results[i];
                 var resultsCol = result1.getAllColumns();
-                var fileId = result1.getValue(resultsCol[0])
-                nlapiLogExecution('DEBUG','fileId',fileId)
+                var fileId = result1.getValue(resultsCol[0]);
+                fileSize += parseInt(result1.getValue(resultsCol[2]));
+                nlapiLogExecution('DEBUG','fileId | fileSize',fileId +'|'+fileSize);
                 var objFile = nlapiLoadFile(fileId);
 				arrFiles.push(objFile);
 			}		
 		}
+        if(fileSize > 10000){
+            arrFiles = [];
+        }
 
 	}catch(e){
 		nlapiLogExecution('ERROR',LOG_TITLE, e);
