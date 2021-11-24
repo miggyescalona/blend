@@ -14,6 +14,7 @@
  *  08 June 2021        Miggy Escalona      Pass input (SO number, error message) to summary stage
  *  27 July 2021        Miggy Escalona	    Update customerparent to customerparentid, update custrecord_cwgp_parenttenanttext to custrecord_cwgp_parenttenant.value
  *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
+ *  3  September 2021   Miggy Escalona      Fixed GetInputData forloop to allow parallel processing of different customers
  */
 
 
@@ -44,15 +45,23 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
     function getInputData() {
         LOG_NAME = 'getInputData';
         try{
+          	log.debug('===START===');
             var paramArray = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.PARAMARRAY);
             var paramArrayParsed = JSON.parse(paramArray);
             var arrParentId = [];
-            for(var x = 0; x <paramArrayParsed[0].length;x++){
-                arrParentId.push(paramArrayParsed[0][x].customerparentid);
+          	log.debug(LOG_NAME, JSON.stringify(paramArrayParsed));
+          	for(var y = 0; y < paramArrayParsed.length; y++){
+              for(var x = 0; x <paramArrayParsed[y].length;x++){
+                  log.debug(LOG_NAME,'customerparentid: '+ paramArrayParsed[y][x].customerparentid);
+                  arrParentId.push(paramArrayParsed[y][x].customerparentid);
+              }
             }
+          	log.debug(LOG_NAME, JSON.stringify(arrParentId));
             var objSearch = search.load({id: MR_OBJ.SEARCH.HYBRID});
             objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_firstsentatdate', operator: search.Operator.WITHIN, values: [paramArrayParsed[0][0].dateFrom,paramArrayParsed[0][0].dateTo]})); 
             objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_parenttenant', operator: search.Operator.ANYOF, values: arrParentId})); 
+            var searchResultCount = objSearch.runPaged().count;
+          	log.debug(LOG_NAME,'search count: ' + searchResultCount);
             return objSearch;
         }
         catch(e){
@@ -65,15 +74,15 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
         LOG_NAME = 'map';
         try{
             var searchValue = JSON.parse(context.value);
-            log.debug('searchValue',JSON.stringify(searchValue));
+            //log.debug('searchValue',JSON.stringify(searchValue));
 
             var paramArray = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.PARAMARRAY);
             var paramArrayParsed = JSON.parse(paramArray);
-            log.debug('paramArrayParsed',JSON.stringify(paramArrayParsed));
+            //log.debug('paramArrayParsed',JSON.stringify(paramArrayParsed));
 
             var byParent = filterByProperty(paramArrayParsed, "customerparentid", searchValue.values.custrecord_cwgp_parenttenant.value);
 
-            log.debug('byParent',byParent);
+            //log.debug('byParent',byParent);
             var param;
             if(!isEmpty(byParent)){
                   param = byParent.filter(function(param) {
@@ -81,11 +90,11 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                 });
             }
 
-            log.debug('param',param);
+           // log.debug('param',param);
 
             if(!isEmpty(param)){
-            log.debug(param[0].salesorderid + '|' + param[0].paramProcessed + '|' + param[0].paramErrorMessage + '|' + param[0].paramInvId)
-                log.debug(searchValue.id);
+            //log.debug(param[0].salesorderid + '|' + param[0].paramProcessed + '|' + param[0].paramErrorMessage + '|' + param[0].paramInvId)
+                //log.debug(searchValue.id);
                 var id = record.submitFields({
                     type: 'customrecord_cwgp_closehybridinvoicing',
                     id: searchValue.id,
@@ -101,7 +110,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     }
                 });
                 
-              	log.debug('id',id);
+              	//log.debug('id',id);
                 var arrKey =[];
                 arrKey.push(param[0].salesorderid);
 
@@ -114,14 +123,14 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     return true;    
                 });
               
-               	log.debug('arrKey1',arrKey);
+               	//log.debug('arrKey1',arrKey);
 
                 ///Push invoice id to array
                 if(param[0].hasOwnProperty("paramInvId")){
                     arrKey.push(param[0].paramInvId);
                 }
               
-                log.debug('arrKey2',arrKey);
+               // log.debug('arrKey2',arrKey);
 
 
                 var objValue = {
@@ -147,12 +156,12 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
     function reduce(context) {
         LOG_NAME = 'reduce';
         try{
-            log.debug(LOG_NAME, 'context.key' + context.key);
+            //log.debug(LOG_NAME, 'context.key' + context.key);
             var values = context.values;
             var arrValues = [];
 
             values.forEach(function (result) {
-                log.debug(LOG_NAME,result);
+               // log.debug(LOG_NAME,result);
                 arrValues.push(JSON.parse(result));
             });
 
@@ -181,6 +190,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                 var val = JSON.parse(value);
 
                 log.debug('val',val);
+              	log.debug('arrKey',arrKey);
                 var stErrorMessage = [];
                 var isError = true;
 
@@ -221,17 +231,16 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
             
             var body = 'Processed the following Sales Order/s: \n';
             for(var x = 0; x < arrValues.length; x++){
-                body+= 'SO: '+ arrValues[x].soNum + '| Customer: ' + arrValues[x].stName+ ' | Successful: ' + arrValues[x].isProcessed + ', Failed: ' + arrValues[x].isFailed + ' Reason: ';
+                body+= '\n' + ' SO: '+ arrValues[x].soNum + '| Customer: ' + arrValues[x].stName+ ' | Successful: ' + arrValues[x].isProcessed + ', Failed: ' + arrValues[x].isFailed + ' Reason: ';
                 for(var i = 0; i < arrValues[x].stErrorMessage.length;i++){
                     log.debug(arrValues[x].stErrorMessage[i]);
                     body+= arrValues[x].stErrorMessage[i];
                 }
-                body+= +'\n';
             }
             body = body.replace('undefined','');
 
             email.send({
-                author: -5,
+                author: 25142,
                 recipients: currentUser,
                 subject: 'Hi, the close hybrid records you have submitted has been completed.',
                 body: body
@@ -278,6 +287,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     log.debug('re-try mrTaskId', mrTaskId);
                 }
             }
+          log.debug('===END===');
         }
         catch(e){
             log.error(LOG_NAME,e);
