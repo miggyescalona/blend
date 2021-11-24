@@ -12,7 +12,11 @@
  *  Date Modified       Modified By         Notes
  *  14 May 2021         Miggy Escalona      Initial Version
  *  9 August 2021       Miggy Escalona      Match Close Type selected to Item's Close Type on SO
- *  9 August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
+ *  9 August 2021       Miggy Escalona      Create adhoc deployment if no available deployment
+ *  3 September 2021	Miggy Escalona		Set billing term to Overage
+ *  28 October 2021     Miggy Escalona      Include fees on both SO and Invoices
+ *  09 November 2021    Miggy Escalona      Change items to Allocation/Non-Allocation items
+ *  10 November 2021    Miggy Escalona      Change fees to Allocation/Non-Allocation items
  */
 
 
@@ -28,23 +32,37 @@ var MR_OBJ = {
         PARENTCHILDMAPPING: 'customsearch_cwgp_script_hybridparentchi'
     },
     FIELDS: {
-        TFC: 'custbody_cwgp_trmnation_fr_convenience',
+        ENTITY: 'entity',
     },
     VALUES: {
         TYPE_HYBRID: '2',
         TYPE_RON: '1',
-        TYPE_TRADITIONAL:'3'
+        TYPE_TRADITIONAL:'3',
+        TYPE_RON_ALLOCNONALLOC: '4',
+        TYPE_HYBRID_ALLOCNONALLOC: '5'
     },
     SCRIPTID: {
         SOTOINV: '896',
         UPDATEREC: '897',
         CSVATTACH: '898'
+    },
+    ITEMS: {
+        SIGNROOM: '143',
+        CLOSENOTARIZATION: '115',
+        RON_NONALLOC: '849',
+        HYBRID_NONALLOC: '847',
+        RON_ALLOC: '955',
+        HYBRID_ALLOC: '952',
+        SIGNROOM_NONALLOC: '872',
+        CLOSENOTARIZATION_NONALLOC: '848',
+        SIGNROOM_ALLOC: '993',
+        CLOSENOTARIZATION_ALLOC: '953'
     }
 }
 
 var LOG_NAME;
 var PDF_FOLDER = 1823568;
-define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runtime','N/render','N/file'], function(runtime,search,record,task,error,format,runtime,render,file) {
+define(['N/runtime','N/search','N/record','N/task','N/format','N/render'], function(runtime,search,record,task,format,render) {
 
     function getInputData() {
         LOG_NAME = 'getInputData';
@@ -73,13 +91,13 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
             dateFrom = month+'/'+day+'/'+year;
 
             dateTo =  new Date(dateTo);
-            var month = dateTo.getUTCMonth() + 1; //months from 1-12
-            var day = dateTo.getUTCDate();
-            var year = dateTo.getUTCFullYear();
+            month = dateTo.getUTCMonth() + 1; //months from 1-12
+            day = dateTo.getUTCDate();
+            year = dateTo.getUTCFullYear();
             dateTo = month+'/'+day+'/'+year;
 
             var objValue = JSON.parse(context.value);
-            log.debug('searchinput', 'objValue.customerparent: ' + objValue.customerparent + '| dateFrom: ' + dateFrom + '| dateTo: ' + dateTo + '| objValue.closetype ' + objValue.closetype + '| objValue.salesorder ' + objValue.salesorder) + '| objValue.salesorderid ' + objValue.salesorderid;
+            log.debug('searchinput', 'objValue.customerparent: ' + objValue.customerparent + '| dateFrom: ' + dateFrom + '| dateTo: ' + dateTo + '| objValue.closetype ' + objValue.closetype + '| objValue.salesorder ' + objValue.salesorder + '| objValue.salesorderid ' + objValue.salesorderid);
             
 
             objValue.dateFrom = dateFrom;
@@ -115,7 +133,6 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
             var invId;
             var isProcessed = '1';
             var stErrorMessage = '';
-            //var intTFC;
             var arrLineUniqueKey = [];
             try{
                 var objSO = record.load({
@@ -124,11 +141,20 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                     isDynamic: true,
                 });
 
-                /*intTFC = objSO.getValue({
-                    fieldId: MR_OBJ.FIELDS.TFC
+                var intEntity = objSO.getValue({
+                    fieldId: MR_OBJ.FIELDS.ENTITY
                 });
 
-                log.debug('intTFC',intTFC);*/
+                var objEntityFields = search.lookupFields({
+                    type: search.Type.CUSTOMER,
+                    id: intEntity,
+                    columns: ['custentity_cwgp_includesignroom', 'custentity_cwgp_includeclosenotarization']
+                });
+
+                var blItemSignRoom = objEntityFields.custentity_cwgp_includesignroom;
+                var blItemCloseNotarization = objEntityFields.custentity_cwgp_includeclosenotarization;
+
+                log.debug('blItemSignRoom | blItemCloseNotarization', blItemSignRoom + '|' + blItemCloseNotarization);
 
 
                 var soItemLineCount = objSO.getLineCount({
@@ -136,7 +162,13 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                 });
 
                 var intUsageCount;
-                var arrInsertItems = []
+                var arrInsertItems = [];
+                var arrInsertFees = [];
+                var isAddedItemSignRoom = false;
+                var isAddedItemCloseNotarization = false;
+                var isCloseRON = false;
+                var isCloseHYBRID = false;
+
 
                 ////Copy matching RON or HYBRID Items on SO
                 for(var x = 0; x < arrValues.length; x++){
@@ -158,11 +190,17 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         });
 
                         log.debug('intItem',intItem);
-                        
                         log.debug('intItemCloseUsageType | arrValues[x].closetype', intItemCloseUsageType  +'|' + arrValues[x].closetype);
 
 
-                        if(intItemCloseUsageType == arrValues[x].closetype){
+                        if((intItemCloseUsageType == 'RON-A/NA' && arrValues[x].closetype == 'RON') || (intItemCloseUsageType == 'HYBRID-A/NA' && arrValues[x].closetype == 'HYBRID')){
+                            if(intItemCloseUsageType == 'RON-A/NA' && isCloseRON){
+                                continue;
+                            }
+                            else if(intItemCloseUsageType == 'HYBRID-A/NA' && isCloseHYBRID){
+                                continue;
+                            }
+                            else{
                                 var intRate = objSO.getCurrentSublistValue({
                                     sublistId: 'item',
                                     fieldId: 'rate'
@@ -173,6 +211,13 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                                     fieldId: 'custcol3'
                                 });
 
+                                if(intItem == MR_OBJ.ITEMS.RON_ALLOC){
+                                    intItem = MR_OBJ.ITEMS.RON_NONALLOC;
+                                }
+                                else if(intItem == MR_OBJ.ITEMS.HYBRID_ALLOC){
+                                    intItem = MR_OBJ.ITEMS.HYBRID_NONALLOC;
+                                }
+
                                 var objInsertItems = {
                                     'intItem': intItem,
                                     'intRate': intRate,
@@ -182,7 +227,70 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                                     'stBillingTerm': stBillingTerm
                                 }
                                 arrInsertItems.push(objInsertItems);
-                                break;
+                                if(arrValues[x].closetype == 'RON'){
+                                    isCloseRON = true;
+                                }
+                                else if(arrValues[x].closetype == 'HYBRID'){
+                                    isCloseHYBRID = true;
+                                }
+                            }
+                        }
+
+                        if(arrInsertFees.length == 2){
+                            continue;
+                        }
+                        if(blItemSignRoom || blItemCloseNotarization){	
+                            if(intItem == MR_OBJ.ITEMS.SIGNROOM_ALLOC && !isAddedItemSignRoom){
+                                var intItemSignRoomRate= objSO.getCurrentSublistValue({
+                                    sublistId: 'item',
+                                    fieldId: 'rate'
+                                });
+
+                                var stBillingTerm = objSO.getCurrentSublistValue({
+                                    sublistId: 'item',
+                                    fieldId: 'custcol3'
+                                });
+                              
+                              	intItem = MR_OBJ.ITEMS.SIGNROOM_NONALLOC;
+
+                                var objInsertFees = {
+                                    'intItem': intItem,
+                                    'intRate': intItemSignRoomRate,
+                                    'intUsageCount' :intUsageCount,
+                                    'dateFrom': arrValues[x].dateFrom,
+                                    'dateTo': arrValues[x].dateTo,
+                                    'stBillingTerm': stBillingTerm
+                                }
+
+                                arrInsertFees.push(objInsertFees);
+                                isAddedItemSignRoom = true;
+                            }
+
+                            if(intItem == MR_OBJ.ITEMS.CLOSENOTARIZATION_ALLOC && !isAddedItemCloseNotarization){
+                                var intItemCloseNotarizationRate= objSO.getCurrentSublistValue({
+                                    sublistId: 'item',
+                                    fieldId: 'rate'
+                                });
+
+                                var stBillingTerm = objSO.getCurrentSublistValue({
+                                    sublistId: 'item',
+                                    fieldId: 'custcol3'
+                                });
+                              
+                              	intItem = MR_OBJ.ITEMS.CLOSENOTARIZATION_NONALLOC;
+
+                                var objInsertFees = {
+                                    'intItem': intItem,
+                                    'intRate': intItemCloseNotarizationRate,
+                                    'intUsageCount' :intUsageCount,
+                                    'dateFrom': arrValues[x].dateFrom,
+                                    'dateTo': arrValues[x].dateTo,
+                                    'stBillingTerm': stBillingTerm
+                                }
+
+                                arrInsertFees.push(objInsertFees);
+                                isAddedItemCloseNotarization = true;
+                            }
                         }
                     }
                 }
@@ -193,9 +301,79 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                 }
 
                 log.debug('arrInsertItems', arrInsertItems);
+                log.debug('arrInsertFees', arrInsertFees);
+
+                ///Add fees on SO (with new usage/quantity)
+                for(var y = 0; y < arrInsertFees.length;y++){  
+                    objSO.selectNewLine({
+                        sublistId: 'item'
+                    });
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'item',
+                        value: arrInsertFees[y].intItem
+                    });
+                    
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'quantity',
+                        value: parseInt(arrInsertFees[y].intUsageCount)
+                    });
+
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'rate',
+                        value: parseFloat(arrInsertFees[y].intRate)
+                    });
+
+
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol_bl_rev_rec_start',
+                        value: format.parse({value:arrInsertFees[y].dateFrom, type: format.Type.DATE, timezone : format.Timezone.AMERICA_NEW_YORK })
+                        
+                    });
+
+
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol_bl_rev_rec_end',
+                        value: format.parse({value:arrInsertFees[y].dateTo, type: format.Type.DATE, timezone : format.Timezone.AMERICA_NEW_YORK })
+                    });
+
+                    
+
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol_atlas_contract_start_date',
+                        value: format.parse({value:arrInsertFees[y].dateFrom, type: format.Type.DATE, timezone : format.Timezone.AMERICA_NEW_YORK })
+                        
+                    });
+
+
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol_atlas_contract_end_date',
+                        value: format.parse({value:arrInsertFees[y].dateTo, type: format.Type.DATE, timezone : format.Timezone.AMERICA_NEW_YORK })
+                    });
+
+                    
+                    ///Billing Term to Overage
+                    objSO.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol3',
+                        value: 'Overage'
+                    });
+                    
+
+                    objSO.commitLine({
+                        sublistId: 'item'
+                    });
+                }
+    
 
                 ///Add new RON or HYBRID item on SO (with new usage/quantity)
-                for(var x = 0; x < arrInsertItems.length;x++){
+                for(var x = 0; x < arrInsertItems.length;x++){  
                     objSO.selectNewLine({
                         sublistId: 'item'
                     });
@@ -249,11 +427,11 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                     });
 
                     
-                    ///Billing Term to Monthly Arrears
+                    ///Billing Term to Overage
                     objSO.setCurrentSublistValue({
                         sublistId: 'item',
                         fieldId: 'custcol3',
-                        value: arrInsertItems[x].stBillingTerm
+                        value: 'Overage'
                     });
                     
 
@@ -261,7 +439,6 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         sublistId: 'item'
                     });
                 }
-
                 var soId = objSO.save();
 
                 
@@ -367,7 +544,7 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                         objInv.setCurrentSublistValue({
                             sublistId: 'item',
                             fieldId: 'custcol3',
-                            value: stBillingTerm
+                            value: 'Overage'
                         });
 
                         var stDateFrom = objInv.getCurrentSublistValue({
@@ -399,6 +576,160 @@ define(['N/runtime','N/search','N/record','N/task','N/error','N/format','N/runti
                             sublistId: 'item'
                         });
                     }
+                }
+
+                ///Set sign Room Rate if existing
+                if(!isEmpty(intItemSignRoomRate)){
+                    objInv.selectNewLine({
+                        sublistId: 'item'
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'item',
+                        value: MR_OBJ.ITEMS.SIGNROOM_NONALLOC
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol3',
+                        value: 'Overage'
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'rate',
+                        value: intItemSignRoomRate
+                    });
+
+                    
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'quantity',
+                        value: arrValues[0].usagecount
+                    });
+
+
+                    if(!isEmpty(arrValues[0].dateFrom)){
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_atlas_contract_start_date',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_bl_rev_rec_start',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_inv_startdatestored',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+                    }
+                    
+                    if(!isEmpty(arrValues[0].dateTo)){
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_atlas_contract_end_date',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_bl_rev_rec_end',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_inv_enddatestored',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+                    }
+
+                    objInv.commitLine({
+                        sublistId: 'item'
+                    });
+                }
+
+                ///Set Close Notarization if existing
+                if(!isEmpty(intItemCloseNotarizationRate)){
+                    objInv.selectNewLine({
+                        sublistId: 'item'
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'item',
+                        value: MR_OBJ.ITEMS.CLOSENOTARIZATION_NONALLOC
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'custcol3',
+                        value: 'Overage'
+                    });
+
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'rate',
+                        value: intItemCloseNotarizationRate
+                    });
+
+                    
+                    objInv.setCurrentSublistValue({
+                        sublistId: 'item',
+                        fieldId: 'quantity',
+                        value: arrValues[0].usagecount
+                    });
+
+
+                    if(!isEmpty(arrValues[0].dateFrom)){
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_atlas_contract_start_date',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_bl_rev_rec_start',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_inv_startdatestored',
+                            value: format.parse({value:arrValues[0].dateFrom, type: format.Type.DATE})
+                        });
+                    }
+                    
+                    if(!isEmpty(arrValues[0].dateTo)){
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_atlas_contract_end_date',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_bl_rev_rec_end',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+
+                        objInv.setCurrentSublistValue({
+                            sublistId: 'item',
+                            fieldId: 'custcol_inv_enddatestored',
+                            value: format.parse({value:arrValues[0].dateTo, type: format.Type.DATE})
+                        });
+                    }
+                    
+                    objInv.commitLine({
+                        sublistId: 'item'
+                    });
                 }
                 // Submit the record       
                 invId = objInv.save();
