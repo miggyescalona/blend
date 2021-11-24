@@ -45,7 +45,6 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
     function getInputData() {
         LOG_NAME = 'getInputData';
         try{
-          	log.debug('===START===');
             var paramArray = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.PARAMARRAY);
             var paramArrayParsed = JSON.parse(paramArray);
             var arrParentId = [];
@@ -74,15 +73,15 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
         LOG_NAME = 'map';
         try{
             var searchValue = JSON.parse(context.value);
-            //log.debug('searchValue',JSON.stringify(searchValue));
+            log.debug('searchValue',JSON.stringify(searchValue));
 
             var paramArray = runtime.getCurrentScript().getParameter(MR_OBJ.PARAMS.PARAMARRAY);
             var paramArrayParsed = JSON.parse(paramArray);
-            //log.debug('paramArrayParsed',JSON.stringify(paramArrayParsed));
+            log.debug('paramArrayParsed',JSON.stringify(paramArrayParsed));
 
             var byParent = filterByProperty(paramArrayParsed, "customerparentid", searchValue.values.custrecord_cwgp_parenttenant.value);
 
-            //log.debug('byParent',byParent);
+            log.debug('byParent',byParent);
             var param;
             if(!isEmpty(byParent)){
                   param = byParent.filter(function(param) {
@@ -90,11 +89,11 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                 });
             }
 
-           // log.debug('param',param);
+            log.debug('param',param);
 
             if(!isEmpty(param)){
-            //log.debug(param[0].salesorderid + '|' + param[0].paramProcessed + '|' + param[0].paramErrorMessage + '|' + param[0].paramInvId)
-                //log.debug(searchValue.id);
+            log.debug(param[0].salesorderid + '|' + param[0].paramProcessed + '|' + param[0].paramErrorMessage + '|' + param[0].paramInvId)
+                log.debug(searchValue.id);
                 var id = record.submitFields({
                     type: 'customrecord_cwgp_closehybridinvoicing',
                     id: searchValue.id,
@@ -110,7 +109,7 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     }
                 });
                 
-              	//log.debug('id',id);
+              	log.debug('id',id);
                 var arrKey =[];
                 arrKey.push(param[0].salesorderid);
 
@@ -123,14 +122,14 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     return true;    
                 });
               
-               	//log.debug('arrKey1',arrKey);
+               	log.debug('arrKey1',arrKey);
 
                 ///Push invoice id to array
                 if(param[0].hasOwnProperty("paramInvId")){
                     arrKey.push(param[0].paramInvId);
                 }
               
-               // log.debug('arrKey2',arrKey);
+                log.debug('arrKey2',arrKey);
 
 
                 var objValue = {
@@ -156,12 +155,12 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
     function reduce(context) {
         LOG_NAME = 'reduce';
         try{
-            //log.debug(LOG_NAME, 'context.key' + context.key);
+            log.debug(LOG_NAME, 'context.key' + context.key);
             var values = context.values;
             var arrValues = [];
 
             values.forEach(function (result) {
-               // log.debug(LOG_NAME,result);
+                log.debug(LOG_NAME,result);
                 arrValues.push(JSON.parse(result));
             });
 
@@ -190,7 +189,6 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                 var val = JSON.parse(value);
 
                 log.debug('val',val);
-              	log.debug('arrKey',arrKey);
                 var stErrorMessage = [];
                 var isError = true;
 
@@ -287,7 +285,6 @@ define(['N/runtime','N/search','N/record','N/task','N/runtime','N/email'], funct
                     log.debug('re-try mrTaskId', mrTaskId);
                 }
             }
-          log.debug('===END===');
         }
         catch(e){
             log.error(LOG_NAME,e);
