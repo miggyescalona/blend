@@ -12,6 +12,8 @@
  *  14 May 2021         Paolo Escalona      Initial Version
  *  26 May 2021         Paolo Escalona      Remove customer child and and tenant on Save Record function
  *  14 June 2021	    Paolo Escalona		Filters Sales Orders by Close Hybrid Items
+ *  28 October 2021		Paolo Escalona		Exclude Sales Orders that are End Dates are beyond the Date To on the Suitelet filter
+ *  11 November 2021	Paolo Escalona		Exclude Sales Orders that are End Dates are before the Date To on the Suitelet filter
  */
 
 
@@ -84,9 +86,12 @@ define(['N/currentRecord','N/format','N/url','N/ui/dialog','N/ui/message','N/sea
                     }
                 }
 
+
                 ///Get all Sales Orders and put into an object
                 var objSearch = search.load({id: CS_OBJ.SEARCH.SALESORDER});   
                 objSearch.filters.push(search.createFilter({name: 'name', operator: search.Operator.ANYOF, values: arrCusParentID})); 
+              	objSearch.filters.push(search.createFilter({name: 'enddate', operator: search.Operator.AFTER, values: dateToString(rec.getValue(CS_OBJ.MAIN.DATETO))}));
+              	console.log(rec.getValue(CS_OBJ.MAIN.DATETO))
                 var searchResultCount = objSearch.runPaged().count;
                 objSearch.run().each(function(result){ 
                     objSO = {
