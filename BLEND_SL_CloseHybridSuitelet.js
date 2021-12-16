@@ -14,6 +14,7 @@
  *  9  August 2021      Miggy Escalona      Exclude Custom Records tagged as 'D' on Close Usage Count
  *  9  August 2021      Miggy Escalona      Fixed dateFrom to dateTo to show correct usage count
  *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
+ *  3  September 2021   Miggy Escalona      Remove invoice number as criteria to show rows
  */
 
 
@@ -497,8 +498,8 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
 
                 objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_firstsentatdate', operator: search.Operator.WITHIN, values: [stDateFrom,stDateTo]})); 
             }
-            objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_invoicenumber', operator: search.Operator.ANYOF, values:"@NONE@"})); 
-            objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_isprocessed', operator: search.Operator.NONEOF, values:"3"}));
+            //objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_invoicenumber', operator: search.Operator.ANYOF, values:"@NONE@"})); 
+            objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_isprocessed', operator: search.Operator.NONEOF, values:"1"}));
             var searchResultCount = objSearch.runPaged().count;
             log.debug('search results count', searchResultCount);
             objSearch.run().each(function(result){
