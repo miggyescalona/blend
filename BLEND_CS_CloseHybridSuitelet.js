@@ -14,6 +14,7 @@
  *  14 June 2021	    Paolo Escalona		Filters Sales Orders by Close Hybrid Items
  *  28 October 2021		Paolo Escalona		Exclude Sales Orders that are End Dates are beyond the Date To on the Suitelet filter
  *  11 November 2021	Paolo Escalona		Exclude Sales Orders that are End Dates are before the Date To on the Suitelet filter
+ * 16 December 2021		Paolo Escalona		Change get date values from get value to get text
  */
 
 
@@ -90,8 +91,9 @@ define(['N/currentRecord','N/format','N/url','N/ui/dialog','N/ui/message','N/sea
                 ///Get all Sales Orders and put into an object
                 var objSearch = search.load({id: CS_OBJ.SEARCH.SALESORDER});   
                 objSearch.filters.push(search.createFilter({name: 'name', operator: search.Operator.ANYOF, values: arrCusParentID})); 
+                console.log('dateTo: ' + rec.getValue(CS_OBJ.MAIN.DATETO));
+                console.log('dateToString: ' + dateToString(rec.getValue(CS_OBJ.MAIN.DATETO)));
               	objSearch.filters.push(search.createFilter({name: 'enddate', operator: search.Operator.AFTER, values: dateToString(rec.getValue(CS_OBJ.MAIN.DATETO))}));
-              	console.log(rec.getValue(CS_OBJ.MAIN.DATETO))
                 var searchResultCount = objSearch.runPaged().count;
                 objSearch.run().each(function(result){ 
                     objSO = {
@@ -222,8 +224,8 @@ define(['N/currentRecord','N/format','N/url','N/ui/dialog','N/ui/message','N/sea
                         'intSublistCount': rec.getLineCount(CS_OBJ.SUBLIST.ID),
                     }
 
-                    var dateFrom = rec.getValue(CS_OBJ.MAIN.DATEFROM);
-                    var dateTo = rec.getValue(CS_OBJ.MAIN.DATETO);
+                    var dateFrom = rec.getText(CS_OBJ.MAIN.DATEFROM);
+                    var dateTo = rec.getText(CS_OBJ.MAIN.DATETO);
         
                     if(isEmpty(arrSublist)){
                         myMsg4 = message.create({
@@ -275,8 +277,8 @@ define(['N/currentRecord','N/format','N/url','N/ui/dialog','N/ui/message','N/sea
         LOG_NAME = 'submitFilters: ';
         try{
             console.log(LOG_NAME);
-            var dateFrom = rec.getValue(CS_OBJ.MAIN.DATEFROM);
-            var dateTo = rec.getValue(CS_OBJ.MAIN.DATETO);
+            var dateFrom = rec.getText(CS_OBJ.MAIN.DATEFROM);
+            var dateTo = rec.getText(CS_OBJ.MAIN.DATETO);
 
 
             ///Dialog/Warning Submit Filters
@@ -390,6 +392,7 @@ define(['N/currentRecord','N/format','N/url','N/ui/dialog','N/ui/message','N/sea
     function dateToString(dt){
        return ((dt.getMonth() > 8) ? (dt.getMonth() + 1) : ('0' + (dt.getMonth() + 1))) + '/' + ((dt.getDate() > 9) ? dt.getDate() : ('0' + dt.getDate())) + '/' + dt.getFullYear()  
     }
+
 
     function firstDayInPreviousMonth(yourDate) {
         var dt = new Date(yourDate.getFullYear(), yourDate.getMonth() - 1, 1);
