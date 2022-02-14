@@ -15,6 +15,7 @@
  *  9  August 2021      Miggy Escalona      Fixed dateFrom to dateTo to show correct usage count
  *  9  August 2021      Miggy Escalona      Create adhoc deployment if no available deployment
  *  3  September 2021   Miggy Escalona      Remove invoice number as criteria to show rows
+ * 16 December 2021		Miggy Escalona		Load and use user timezone
  */
 
 
@@ -55,9 +56,10 @@ var LOG_NAME;
 var CLIENT_SCRIPT_FILE_ID = 249329;
 var CSVFolder = 1823567;
 var objFilters = {};
-define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record'], function(ui,search,task,file,runtime,record) {
+define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record','N/config','N/format'], function(ui,search,task,file,runtime,record,config,format) {
 
     function onRequest(context) {
+        log.debug('onRequest');
         var httpsType = context.request.parameters.params_cwgp_httpstype;
         if(context.request.method === 'GET' && httpsType != 'post'){
             LOG_NAME = 'onRequest';
@@ -87,6 +89,7 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
         LOG_NAME = 'generateRequestForm'
         try{
 
+
             log.debug('objFilters',objFilters);
 
             var form = ui.createForm({
@@ -115,7 +118,9 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
 
 
             if(!isEmpty(objFilters.paramDateFrom)){
-                dateFrom.defaultValue = new Date(objFilters.paramDateFrom);
+                var timezone = config.load({type: config.Type.USER_PREFERENCES}).getValue({fieldId: "TIMEZONE"})
+                var paramDateFrom = format.parse({ value : objFilters.paramDateFrom, type : format.Type.DATE, timezone : timezone});
+                dateFrom.defaultValue = paramDateFrom;
             }
             
 
@@ -133,7 +138,9 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
 
             
             if(!isEmpty(objFilters.paramDateTo)){
-                dateTo.defaultValue = new Date(objFilters.paramDateTo);
+                var timezone = config.load({type: config.Type.USER_PREFERENCES}).getValue({fieldId: "TIMEZONE"})
+                var paramDateTo = format.parse({ value : objFilters.paramDateTo, type : format.Type.DATE, timezone : timezone});
+                dateTo.defaultValue = paramDateTo;
             }
             
             fltrGroup.isSingleColumn = true;
@@ -480,11 +487,12 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
             if(isEmpty(paramDateFrom) && isEmpty(paramDateTo)){
                 var stFirstDay = firstDayInPreviousMonth();
                 var stLastDay = lastDayInPreviousMonth();
+                log.debug('stFirstDay | stLastDay', stFirstDay +'| ' + stLastDay);
                 objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_firstsentatdate', operator: search.Operator.WITHIN, values: [stFirstDay,stLastDay]})); 
             }
             else{
     
-                var stDateFrom = new Date(paramDateFrom);
+                /*var stDateFrom = new Date(paramDateFrom);
                 var month = stDateFrom.getUTCMonth() + 1; //months from 1-12
                 var day = stDateFrom.getUTCDate();
                 var year = stDateFrom.getUTCFullYear();
@@ -494,8 +502,12 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
                 var month = stDateTo.getUTCMonth() + 1; //months from 1-12
                 var day = stDateTo.getUTCDate();
                 var year = stDateTo.getUTCFullYear();
-                stDateTo = month+'/'+day+'/'+year;
+                stDateTo = month+'/'+day+'/'+year;*/
 
+                var stDateFrom = paramDateFrom;
+                var stDateTo = paramDateTo;
+
+                log.debug('stDateFrom | stDateTo', stDateFrom +'| ' + stDateTo);
                 objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_firstsentatdate', operator: search.Operator.WITHIN, values: [stDateFrom,stDateTo]})); 
             }
             //objSearch.filters.push(search.createFilter({name: 'custrecord_cwgp_invoicenumber', operator: search.Operator.ANYOF, values:"@NONE@"})); 
@@ -531,18 +543,25 @@ define(['N/ui/serverWidget','N/search','N/task','N/file','N/runtime','N/record']
         return false;
     }
 
-    function dateToString(dt){
-        return ((dt.getMonth() > 8) ? (dt.getMonth() + 1) : ('0' + (dt.getMonth() + 1))) + '/' + ((dt.getDate() > 9) ? dt.getDate() : ('0' + dt.getDate())) + '/' + dt.getFullYear()    
-    }
 
     function firstDayInPreviousMonth() {
         var dt = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
-        return ((dt.getMonth() > 8) ? (dt.getMonth() + 1) : ('0' + (dt.getMonth() + 1))) + '/' + ((dt.getDate() > 9) ? dt.getDate() : ('0' + dt.getDate())) + '/' + dt.getFullYear()    
+        var timezone = config.load({type: config.Type.USER_PREFERENCES}).getValue({fieldId: "TIMEZONE"})
+        var dt2 = format.format({value: dt, type: format.Type.DATE, timezone: timezone})
+        
+        return dt2;
+
+        //return ((dt2.getMonth() > 8) ? (dt2.getMonth() + 1) : ('0' + (dt2.getMonth() + 1))) + '/' + ((dt2.getDate() > 9) ? dt2.getDate() : ('0' + dt2.getDate())) + '/' + dt2.getFullYear()    
     }
 
     function lastDayInPreviousMonth() {
-        var dt =  new Date(new Date().getFullYear(), new Date().getMonth(), 0);
-        return ((dt.getMonth() > 8) ? (dt.getMonth() + 1) : ('0' + (dt.getMonth() + 1))) + '/' + ((dt.getDate() > 9) ? dt.getDate() : ('0' + dt.getDate())) + '/' + dt.getFullYear()    
+       var dt =  new Date(new Date().getFullYear(), new Date().getMonth(), 0);
+       var timezone = config.load({type: config.Type.USER_PREFERENCES}).getValue({fieldId: "TIMEZONE"})
+       var dt2 = format.format({value: dt, type: format.Type.DATE, timezone: timezone})
+
+       return dt2;
+       
+       //return ((dt.getMonth() > 8) ? (dt.getMonth() + 1) : ('0' + (dt.getMonth() + 1))) + '/' + ((dt.getDate() > 9) ? dt.getDate() : ('0' + dt.getDate())) + '/' + dt.getFullYear()    
     }
 
     function removeSymbol(symbol, str){
