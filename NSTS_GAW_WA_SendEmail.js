@@ -20,6 +20,7 @@
 *                 22 June 2021    Miggy Escalona                        Added stEntity to include vendor name on subject
 *                 29 July 2021    Miggy Escalona                        Rejected VBs exclude notif to creator 'ap clerk' if rejected by 'ap manager'
 *			       6 Aug  2021    Miggy Escalona                        Fix record URL for rejected POs
+*			      13 Sept 2021	  Miggy Escalona						Exclude files > 10mb 
 */
 
 //**********************************************************************GLOBAL VARIABLE DECLARATION - STARTS HERE**********************************************//
@@ -833,7 +834,9 @@ function sendEmailForApproveReject(stRuleResult){
                     var emailMergerResult = emailMerger.merge();
                     var emailSubject = emailMergerResult.getSubject();
                     var emailBody = emailMergerResult.getBody();
+                  	nlapiLogExecution('DEBUG','stEmailSender | nlapiGetFieldValue(entity) | emailMerger | emailMergerResult | emailSubject ', stEmailSender +'|\n' + nlapiGetFieldValue('entity') +'|\n'+ emailMerger +'| \n'+emailMergerResult+'|\n'+ emailSubject);
                     nlapiSendEmail(stEmailSender, nlapiGetFieldValue('entity'), emailSubject, emailBody, null, null, tranrecord, fileToSend);
+                    nlapiLogExecution('DEBUG','emailSentToVendor','emailSentToVendor');
                 }
 
 			}
@@ -874,41 +877,54 @@ function sendEmailForApproveReject(stRuleResult){
 	
 }
 
-// FG: VB ATTACHMENT 29/01/28 START
 function searchFilesAttached(stInternalId){
 
-	var stLogTitle = 'searchFilesAttached';
+	LOG_TITLE = 'searchFilesAttached';
 
 	var arrFiles = [];
 
 	try{		
 
-		var arrfilters = [];
-		arrfilters.push(new nlobjSearchFilter('internalid', null, 'anyof', stInternalId));
-		arrfilters.push(new nlobjSearchFilter('mainline', null, 'is', 'T'));
+		var results = nlapiSearchRecord("transaction",null,
+        [
+            ["internalid","anyof",stInternalId], 
+            "AND", 
+            ["mainline","is","T"], 
+            "AND", 
+            ["file.documentsize","lessthan","10000"], 
+            "AND", 
+            ["file.name","isnotempty",""]
+        ], 
+        [
+            new nlobjSearchColumn("internalid","file",null), 
+            new nlobjSearchColumn("name","file",null),
+            new nlobjSearchColumn("documentsize","file",null), 
+        ]
+        );
 
-		var arrColumns = [];
-		arrColumns.push(new nlobjSearchColumn('internalid', 'file'));
-
-		var results = nlapiSearchRecord('transaction', null, arrfilters, arrColumns);	
-
-		
+		var fileSize = 0;
 		if(results){
-			nlapiLogExecution('debug', stLogTitle, 'results ' + results.length);
+			nlapiLogExecution('debug', LOG_TITLE, 'results ' + results.length);
 			for(var i = 0; i < results.length; i++){
-				var fileId = results[i].getValue('internalid', 'file');
-				nlapiLogExecution('debug', stLogTitle, 'fileId ' + fileId);
-				var objFile = nlapiLoadFile(fileId);
+                var result1 = results[i];
+                var resultsCol = result1.getAllColumns();
+                var fileId = result1.getValue(resultsCol[0])
+				fileSize += parseInt(result1.getValue(resultsCol[2]));
+                nlapiLogExecution('DEBUG','fileId | fileSize',fileId +'|'+fileSize);
+                var objFile = nlapiLoadFile(fileId);
 				arrFiles.push(objFile);
-			}			
+			}		
 		}
+		if(fileSize > 10000){
+            arrFiles = [];
+        }
 
 	}catch(e){
-		nlapiLogExecution('ERROR', stLogTitle, e);
+		nlapiLogExecution('ERROR',LOG_TITLE, e);
 	}
 	return arrFiles;
 }
-// FG: VB ATTACHMENT 29/01/28 END
+
 
 
 
