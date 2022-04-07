@@ -395,7 +395,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         line: x
                     });
 
-                    var itemStartDate = currentRecord.getSublistValue({
+                  /*  var itemStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.ITEM,
                         fieldId: MAIN_OBJ.FIELDS.ITEMSTARTDATE,
                         line: x
@@ -424,15 +424,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          itemEndDate = formatDate(itemEndDate);
-                    }
+                    }*/
 
 
                     oldRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
+                    //oldRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
+                   // oldRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
                 }
             }
 
@@ -457,13 +457,13 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         line: x
                     });
 
-                    var expStartDate = currentRecord.getSublistValue({
+                    /* var expStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
                         fieldId: MAIN_OBJ.FIELDS.EXPSTARTDATE,
                         line: x
                         });
 
-                    if(!isEmpty(expStartDate)){
+                  if(!isEmpty(expStartDate)){
                         expStartDate = format.parse({
                             value: new Date(expStartDate),
                             type: format.Type.DATETIMETZ
@@ -486,15 +486,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                         })
 
                         expEndDate = formatDate(expEndDate);
-                    }
+                    }*/
 
 
                     oldRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                     oldRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
-                    oldRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
+                    //oldRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
+                   // oldRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
 
                     
                 }
@@ -549,7 +549,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                        });
 
                           
-                       var itemStartDate = currentRecord.getSublistValue({
+                      /* var itemStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.ITEM,
                         fieldId: MAIN_OBJ.FIELDS.ITEMSTARTDATE,
                         line: x
@@ -580,14 +580,14 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          itemEndDate = formatDate(itemEndDate);
-                    }
+                    }*/
    
                        newRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                        newRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                        newRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                        newRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
+                      // newRecArr.push([MAIN_OBJ.FIELDS.ITEMSTARTDATE,itemStartDate]);
+                      // newRecArr.push([MAIN_OBJ.FIELDS.ITEMENDDATE,itemEndDate]);
                    }
                }
    
@@ -612,7 +612,7 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                            line: x
                        });
 
-                       var expStartDate = currentRecord.getSublistValue({
+                    /*   var expStartDate = currentRecord.getSublistValue({
                         sublistId: MAIN_OBJ.SUBLIST.EXPENSE,
                         fieldId: MAIN_OBJ.FIELDS.EXPSTARTDATE,
                         line: x
@@ -642,15 +642,15 @@ define(['N/record','N/format','N/runtime','N/search'], function(record,format,ru
                          })
 
                          expEndDate = formatDate(expEndDate);
-                    }
+                    }*/
 
    
                        newRecArr.push([MAIN_OBJ.FIELDS.QUANTITY,intQuantity]);
                        newRecArr.push([MAIN_OBJ.FIELDS.DEPARTMENT,intDepartment]);
                        newRecArr.push([MAIN_OBJ.FIELDS.CLASS,intClass]);
                        newRecArr.push([MAIN_OBJ.FIELDS.LOCATION,intLocation]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
-                       newRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
+                     //  newRecArr.push([MAIN_OBJ.FIELDS.EXPSTARTDATE,expStartDate]);
+                     //  newRecArr.push([MAIN_OBJ.FIELDS.EXPENDDATE,expEndDate]);
                    }
                }
         }
